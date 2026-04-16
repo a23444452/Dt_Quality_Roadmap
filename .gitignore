@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+logs/
+
+# Test
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Temp files
+*.tmp
+temp_copy.xlsx
+pbit_extract/
+
+# Superpowers
+.superpowers/
+
+# Claude
+.claude_review_state.json

@@ -9,6 +9,12 @@ import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { SolutionMapPage } from '@/features/solution-map/SolutionMapPage'
+import { ProcessMapPage } from '@/features/process-map/ProcessMapPage'
+import { DataManagementPage } from '@/features/data-management/DataManagementPage'
+import { DefectAnalysisPage } from '@/features/analysis/DefectAnalysisPage'
+import { ProcessAnalysisPage } from '@/features/analysis/ProcessAnalysisPage'
+import { UserManagementPage } from '@/features/admin/UserManagementPage'
+import { AdminSettingsPage } from '@/features/admin/AdminSettingsPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth()
@@ -34,12 +40,12 @@ function AppRoutes() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="solution-map" element={<SolutionMapPage />} />
-        <Route path="process-map" element={<div>Process Map (coming soon)</div>} />
-        <Route path="data-management" element={<div>Data Management (coming soon)</div>} />
-        <Route path="analysis/defect" element={<div>Defect Analysis (coming soon)</div>} />
-        <Route path="analysis/process" element={<div>Process Analysis (coming soon)</div>} />
-        <Route path="admin/users" element={<div>User Management (coming soon)</div>} />
-        <Route path="admin/settings" element={<div>Settings (coming soon)</div>} />
+        <Route path="process-map" element={<ProcessMapPage />} />
+        <Route path="data-management" element={<DataManagementPage />} />
+        <Route path="analysis/defect" element={<DefectAnalysisPage />} />
+        <Route path="analysis/process" element={<ProcessAnalysisPage />} />
+        <Route path="admin/users" element={<UserManagementPage />} />
+        <Route path="admin/settings" element={<AdminSettingsPage />} />
       </Route>
     </Routes>
   )

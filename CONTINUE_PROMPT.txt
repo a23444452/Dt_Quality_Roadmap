@@ -1,0 +1,6 @@
+請繼續 D^t Quality Roadmap 專案的設計文件撰寫。
+
+設計進度摘要在 docs/DESIGN_PROGRESS.md，請先閱讀後：
+1. 撰寫完整設計規格到 docs/superpowers/specs/2026-04-16-dt-quality-roadmap-design.md
+2. 進行 Spec 自我審查
+3. 完成後轉入實作計畫階段

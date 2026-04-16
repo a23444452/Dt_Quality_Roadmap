@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import auth
+from app.routers import auth, users
 from app.routers.dashboard import router as dashboard_router
 from app.routers.statuses import router as statuses_router
 from app.routers.defects import category_router, type_router
@@ -34,6 +34,7 @@ app.include_router(tank_line_router)
 app.include_router(solutions_router)
 app.include_router(solution_map_router)
 app.include_router(import_export_router)
+app.include_router(users.router)
 
 
 @app.get("/api/v1/health")

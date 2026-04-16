@@ -1,16 +1,49 @@
-function App() {
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClient } from '@/lib/query-client'
+import { AuthProvider, useAuth } from '@/features/auth/AuthContext'
+import { LoginPage } from '@/features/auth/LoginPage'
+import { RegisterPage } from '@/features/auth/RegisterPage'
+import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth()
+  if (isLoading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  if (!user) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+function AppRoutes() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-foreground mb-4">
-          Dt Quality Roadmap
-        </h1>
-        <p className="text-muted-foreground">
-          Frontend scaffold ready. Auth and routing coming soon.
-        </p>
-      </div>
-    </div>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <div className="p-8">
+              <h1 className="text-2xl font-bold">D^t Quality Roadmap</h1>
+              <p className="text-muted-foreground mt-2">Dashboard coming soon...</p>
+            </div>
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  )
+}

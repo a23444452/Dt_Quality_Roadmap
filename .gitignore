@@ -40,6 +40,13 @@ htmlcov/
 temp_copy.xlsx
 pbit_extract/
 
+# Database files
+*.db
+*.sqlite
+
+# Import temp dir
+backend/tmp/
+
 # Superpowers
 .superpowers/
 

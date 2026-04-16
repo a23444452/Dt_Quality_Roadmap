@@ -1,0 +1,154 @@
+import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from './AuthContext'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+
+export function RegisterPage() {
+  const { register } = useAuth()
+
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+    display_name: '',
+  })
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleChange = (field: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({ ...prev, [field]: e.target.value }))
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setIsSubmitting(true)
+
+    try {
+      const message = await register(formData)
+      setSuccessMessage(message || 'Registration submitted. Awaiting admin approval.')
+    } catch {
+      setError('Registration failed. The username or email may already be taken.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (successMessage) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle>Registration Submitted</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">{successMessage}</p>
+          </CardContent>
+          <CardFooter>
+            <Link to="/login" className="text-sm text-foreground underline-offset-4 hover:underline">
+              Back to Sign In
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl">Create Account</CardTitle>
+          <CardDescription>
+            Register for D^t Quality Roadmap access
+          </CardDescription>
+        </CardHeader>
+
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="display_name">Display Name</Label>
+              <Input
+                id="display_name"
+                type="text"
+                autoComplete="name"
+                required
+                value={formData.display_name}
+                onChange={handleChange('display_name')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                autoComplete="username"
+                required
+                value={formData.username}
+                onChange={handleChange('username')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleChange('email')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={formData.password}
+                onChange={handleChange('password')}
+              />
+            </div>
+          </CardContent>
+
+          <CardFooter className="flex flex-col gap-3">
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Registering...' : 'Register'}
+            </Button>
+            <p className="text-sm text-muted-foreground text-center">
+              Already have an account?{' '}
+              <Link
+                to="/login"
+                className="text-foreground underline-offset-4 hover:underline font-medium"
+              >
+                Sign In
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  )
+}

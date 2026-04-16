@@ -6,6 +6,7 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
+import { AppLayout } from '@/components/layout/AppLayout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth()
@@ -22,16 +23,22 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
-        path="/*"
+        path="/"
         element={
           <ProtectedRoute>
-            <div className="p-8">
-              <h1 className="text-2xl font-bold">D^t Quality Roadmap</h1>
-              <p className="text-muted-foreground mt-2">Dashboard coming soon...</p>
-            </div>
+            <AppLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<div className="text-xl">Dashboard (coming soon)</div>} />
+        <Route path="solution-map" element={<div>Solution Map (coming soon)</div>} />
+        <Route path="process-map" element={<div>Process Map (coming soon)</div>} />
+        <Route path="data-management" element={<div>Data Management (coming soon)</div>} />
+        <Route path="analysis/defect" element={<div>Defect Analysis (coming soon)</div>} />
+        <Route path="analysis/process" element={<div>Process Analysis (coming soon)</div>} />
+        <Route path="admin/users" element={<div>User Management (coming soon)</div>} />
+        <Route path="admin/settings" element={<div>Settings (coming soon)</div>} />
+      </Route>
     </Routes>
   )
 }

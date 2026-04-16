@@ -492,6 +492,302 @@ npm install
 
 ## 使用說明
 
+### 資料架構概念
+
+系統的資料有**嚴格的層級依賴關係**，必須**由上往下**依序建立：
+
+```
+Step 1: Status Definition (狀態定義)
+        └─ 系統已預設 5 個：MP, DEV, PLAN, NA, HOLD
+
+Step 2: Process (製程) → Station (站點)
+        └─ 例：Finishing → Coating, Polishing
+
+Step 3: Defect Category (缺陷大類) → Defect Type (缺陷類型)
+        └─ 例：Surface → Bubble, Scratch
+
+Step 4: Plant (工廠) → Tank Line (產線)
+        └─ 例：Plant Alpha → Line A-1, Line A-2
+
+Step 5: Solution (解決方案)
+        └─ 需要指定 Defect Type + Station
+        └─ 例：Defect Type "Bubble" + Station "Coating" → "Anti-Bubble Spray"
+
+Step 6: Solution Map (導入狀態)
+        └─ 需要 Solution + Tank Line + Status
+        └─ 例："Anti-Bubble Spray" × "Line A-1" → MP
+```
+
+**重要**：如果某頁面顯示空白或 "No data"，通常是因為 **Solution Map 缺少資料**。Solution Map 是 Dashboard、Process Map、Analysis 等所有統計頁面的資料來源。
+
+### 各頁面的資料來源
+
+| 頁面 | 需要的資料 | 顯示內容 |
+|------|-----------|---------|
+| **Dashboard** | Solution Map | KPI 統計、Sankey 圖、工廠覆蓋率 |
+| **Solution Map** | Solution + Tank Line + Solution Map | 樞紐表矩陣 |
+| **Process Map** | Solution (綁定 Station) + Solution Map | 製程流程圖 |
+| **Defect Analysis** | Defect Category/Type → Solution → Solution Map | 缺陷分佈圖表 |
+| **Process Analysis** | Process → Station → Solution → Solution Map | 製程分析圖表 |
+| **Data Management** | 各項 Reference Data | CRUD 管理表格 |
+
+---
+
+### 方式一：透過前端網頁操作（推薦）
+
+以 **Admin** 帳號登入後，依照以下順序操作。
+
+#### Step 1: 確認狀態定義（Admin → Settings）
+
+前往左側 Sidebar 的 **Settings** 頁面，確認 Status Definition 已存在：
+
+| 代碼 | 名稱 | 色碼 | 說明 |
+|------|------|------|------|
+| MP | Mass Production | 綠色 | 已量產 |
+| DEV | Developing | 黃色 | 開發中 |
+| PLAN | Planned | 藍色 | 已規劃 |
+| NA | Not Applicable | 灰色 | 不適用 |
+| HOLD | On Hold | 紅色 | 暫停 |
+
+> 系統已預設這 5 個狀態，通常不需修改。如需新增可在此頁面操作。
+
+#### Step 2: 建立基礎參考資料（Data Management）
+
+前往 **Data Management** 頁面，依照以下順序在各 Tab 操作：
+
+**2-1. Stations Tab — 新增站點**
+
+> 前提：需先透過 API（方式二）或 seed 腳本建立 Process（製程），因為 Station 必須歸屬於某個 Process。
+
+1. 切換至 **Stations** Tab
+2. 點擊 **Add** 按鈕
+3. 選擇所屬 Process（如 Finishing）
+4. 輸入 Station 名稱（如 Coating）
+5. 儲存
+
+**2-2. Defect Types Tab — 新增缺陷類型**
+
+> 前提：需先透過 API（方式二）或 seed 腳本建立 Defect Category（缺陷大類）。
+
+1. 切換至 **Defect Types** Tab
+2. 點擊 **Add** 按鈕
+3. 選擇所屬 Category（如 Surface）
+4. 輸入 Type 名稱（如 Bubble）
+5. 儲存
+
+**2-3. Tank Lines Tab — 新增產線**
+
+> 前提：需先透過 API（方式二）或 seed 腳本建立 Plant（工廠）。
+
+1. 切換至 **Tank Lines** Tab
+2. 點擊 **Add** 按鈕
+3. 選擇所屬 Plant（如 Plant Alpha）
+4. 輸入 Line 名稱和代碼
+5. 儲存
+
+**2-4. Solutions Tab — 新增解決方案**
+
+> 前提：Defect Type 和 Station 都已建立。
+
+1. 切換至 **Solutions** Tab
+2. 點擊 **Add** 按鈕
+3. 選擇 Defect Type（如 Bubble）
+4. 選擇 Station（如 Coating）
+5. 輸入 Solution 名稱（如 Anti-Bubble Spray）
+6. 儲存
+
+#### Step 3: 設定導入狀態（Solution Map）
+
+前往 **Solution Map** 頁面：
+
+1. 找到要設定的 Solution × Tank Line 交叉格
+2. 點擊 cell → 選擇狀態 (MP/DEV/PLAN/NA/HOLD)
+3. 可加入備註
+4. 點擊「Save」儲存
+
+**狀態色塊說明：**
+
+| 色塊 | 狀態 | 說明 |
+|------|------|------|
+| 🟢 綠色 | **MP** | Mass Production — 已量產 |
+| 🟡 黃色 | **DEV** | Developing — 開發中 |
+| 🔵 藍色 | **PLAN** | Planned — 已規劃 |
+| ⚪ 灰色 | **NA** | Not Applicable — 不適用 |
+| 🔴 紅色 | **HOLD** | On Hold — 暫停 |
+
+> **樂觀鎖機制**：如果其他人同時修改了同一筆資料，系統會提示 Conflict，請重新整理後再操作。
+
+#### Step 4: 確認各頁面顯示
+
+完成以上步驟後，以下頁面應可正常顯示資料：
+- **Dashboard** — KPI 卡片 + Sankey 圖
+- **Solution Map** — 樞紐表
+- **Process Map** — 製程流程圖
+- **Defect Analysis** — 缺陷分佈圖表
+- **Process Analysis** — 製程分析圖表
+
+---
+
+### 方式二：透過 API（Swagger UI）
+
+適用於建立 Process、Defect Category、Plant 等前端目前無法直接新增的父層級資料。
+
+#### Step 1: 開啟 API 文件
+
+啟動 Backend 後，開啟瀏覽器前往 http://localhost:8000/docs
+
+#### Step 2: 取得 Token
+
+1. 找到 `POST /api/v1/auth/login`
+2. 點擊 **Try it out**
+3. 輸入：
+   ```json
+   { "username": "admin", "password": "Admin123!" }
+   ```
+4. 點擊 **Execute**
+5. 複製回傳的 `access_token`
+6. 點擊頁面頂部的 **Authorize** 按鈕，貼上 `Bearer <token>`
+
+#### Step 3: 依序呼叫 API 建立資料
+
+按以下順序操作（每一步都需先完成前一步）：
+
+**建立製程：**
+```
+POST /api/v1/processes
+Body: { "name": "Finishing", "description": "後段製程", "sort_order": 3 }
+```
+
+**建立站點：**
+```
+POST /api/v1/stations
+Body: { "process_id": 1, "name": "Coating", "sort_order": 1 }
+```
+> `process_id` 為上一步建立的 Process ID。
+
+**建立缺陷大類：**
+```
+POST /api/v1/defect-categories
+Body: { "name": "Surface", "description": "表面缺陷" }
+```
+
+**建立缺陷類型：**
+```
+POST /api/v1/defect-types
+Body: { "category_id": 1, "name": "Bubble" }
+```
+
+**建立工廠：**
+```
+POST /api/v1/plants
+Body: { "name": "Plant Alpha", "code": "PA" }
+```
+
+**建立產線：**
+```
+POST /api/v1/tank-lines
+Body: { "plant_id": 1, "name": "Line A-1", "code": "A1" }
+```
+
+**建立解決方案：**
+```
+POST /api/v1/solutions
+Body: { "defect_type_id": 1, "station_id": 1, "name": "Anti-Bubble Spray" }
+```
+
+**批次設定導入狀態：**
+```
+POST /api/v1/solution-map/batch
+Body: {
+  "updates": [
+    { "solution_id": 1, "tank_line_id": 1, "status_id": 1 },
+    { "solution_id": 1, "tank_line_id": 2, "status_id": 2, "notes": "Testing" }
+  ]
+}
+```
+> `status_id`: 1=MP, 2=DEV, 3=PLAN, 4=NA, 5=HOLD（依實際 ID）。
+
+#### API 建立順序速查
+
+| 順序 | API | 依賴 |
+|------|-----|------|
+| 1 | `POST /api/v1/processes` | 無 |
+| 2 | `POST /api/v1/stations` | process_id |
+| 3 | `POST /api/v1/defect-categories` | 無 |
+| 4 | `POST /api/v1/defect-types` | category_id |
+| 5 | `POST /api/v1/plants` | 無 |
+| 6 | `POST /api/v1/tank-lines` | plant_id |
+| 7 | `POST /api/v1/solutions` | defect_type_id + station_id |
+| 8 | `POST /api/v1/solution-map/batch` | solution_id + tank_line_id + status_id |
+
+---
+
+### 方式三：Excel 匯入（批次操作）
+
+適用於大量資料的批次匯入。
+
+#### Step 1: 下載匯入範本
+
+1. 前往 **Data Management** 頁面的 **Import** 區域
+2. 點擊 **Download Template** 按鈕
+3. 選擇格式：
+   - **List 格式** — 每列一筆記錄，適合少量精確匯入
+   - **Matrix 格式** — 矩陣格式（模仿原始 Power BI 報表），適合全量匯入
+
+#### Step 2: 填寫 Excel
+
+**List 格式範例：**
+
+| Solution | Defect Type | Station | Plant | Line | Status |
+|----------|-------------|---------|-------|------|--------|
+| Anti-Bubble Spray | Bubble | Coating | Plant Alpha | Line A-1 | MP |
+| Anti-Bubble Spray | Bubble | Coating | Plant Alpha | Line A-2 | DEV |
+| Anti-Bubble Spray | Bubble | Coating | Plant Beta | Line B-1 | PLAN |
+| Slow Cool Cycle | Crack | Casting | Plant Alpha | Line A-1 | MP |
+
+**Matrix 格式範例：**
+
+| Defect Category | Defect Type | Station | Solution | PA-A1 | PA-A2 | PB-B1 |
+|-----------------|-------------|---------|----------|-------|-------|-------|
+| Surface | Bubble | Coating | Anti-Bubble Spray | MP | DEV | PLAN |
+| Structural | Crack | Casting | Slow Cool Cycle | MP | NA | DEV |
+
+> **欄位說明：**
+> - Status 欄位只接受代碼：`MP`、`DEV`、`PLAN`、`NA`、`HOLD`
+> - 產線欄位名稱（Matrix 格式）格式為 `{工廠代碼}-{產線代碼}`（如 `PA-A1`）
+> - 如果 Solution、Defect Type、Station 等尚未在系統中建立，匯入時會自動建立（List 格式）
+
+#### Step 3: 上傳並預覽
+
+1. 在 **Import** 區域選擇對應格式（List / Matrix）
+2. 拖拽或選擇 Excel 檔案上傳
+3. 系統顯示預覽結果：
+
+   | 項目 | 說明 |
+   |------|------|
+   | **New Records** | 將新增的筆數 |
+   | **Updated Records** | 將更新的筆數 |
+   | **Errors** | 格式錯誤（如無效的 Status 代碼） |
+   | **Warnings** | 警告（如找不到的產線將自動建立） |
+
+#### Step 4: 確認匯入
+
+1. 確認預覽無嚴重錯誤
+2. 點擊 **Confirm Import** 執行匯入
+3. 系統回報匯入結果（新增/更新/跳過筆數）
+
+> **注意**：預覽結果有 15 分鐘有效期，超時需重新上傳。
+
+#### Step 5: 匯出現有資料
+
+如需匯出現有資料作為備份或參考：
+
+1. 前往 **Data Management** 頁面的 **Export** 區域
+2. 選擇匯出格式（List / Matrix）
+3. 點擊 **Download** 按鈕下載 .xlsx 檔案
+
+---
+
 ### 新增使用者
 
 1. 開啟登入頁面，點擊「Register」連結
@@ -499,42 +795,18 @@ npm install
 3. 送出後帳號狀態為「Pending」，需管理員審核
 4. 管理員至 **Admin → User Management** 頁面，找到 Pending 用戶，選擇角色後點擊「Approve」
 
-### 管理 Solution Map
+### 角色權限說明
 
-1. 進入 **Solution Map** 頁面
-2. 使用頂部篩選列縮小顯示範圍（依製程、站點、缺陷類別、工廠）
-3. 樞紐表以色塊顯示各 Solution 在各產線的導入狀態：
-   - 🟢 **MP** (Mass Production) — 已量產
-   - 🟡 **DEV** (Developing) — 開發中
-   - 🔵 **PLAN** (Planned) — 已規劃
-   - ⚪ **NA** (Not Applicable) — 不適用
-   - 🔴 **HOLD** (On Hold) — 暫停
-4. **Editor/Admin** 可點擊 cell 修改狀態：
-   - 選擇新狀態
-   - 可加入備註
-   - 系統使用樂觀鎖機制，若其他人同時修改會收到 Conflict 提示
-
-### 匯入 Excel 資料
-
-1. 進入 **Data Management** 頁面
-2. 切換至「Import」區域
-3. 選擇匯入格式：
-   - **List 格式** — 每列一筆記錄 (Solution, Defect Type, Station, Plant, Line, Status)
-   - **Matrix 格式** — 行為 Solution，列為產線，值為狀態代碼
-4. 拖拽或選擇 Excel 檔案上傳
-5. 系統顯示預覽結果：新增筆數、更新筆數、錯誤清單
-6. 確認無誤後點擊「Confirm Import」執行匯入
-
-### 匯出 Excel 資料
-
-1. 進入 **Data Management** 頁面的「Export」區域
-2. 選擇匯出格式 (List / Matrix)
-3. 點擊「Download」按鈕
-
-### 下載匯入範本
-
-1. 進入 **Data Management** 頁面的「Import」區域
-2. 點擊「Download Template」按鈕選擇格式
+| 操作 | Viewer | Editor | Admin |
+|------|--------|--------|-------|
+| 瀏覽所有頁面 | O | O | O |
+| 匯出 Excel | O | O | O |
+| 編輯 Solution Map 狀態 | X | O | O |
+| 新增/修改 Solutions | X | O | O |
+| 匯入 Excel | X | O | O |
+| 刪除資料 | X | X | O |
+| 管理用戶 (Approve/Reject) | X | X | O |
+| 管理 Reference Data (Process, Category, Plant) | X | X | O |
 
 ---
 

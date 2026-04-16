@@ -10,6 +10,7 @@ from app.routers.processes import process_router, station_router
 from app.routers.plants import plant_router, tank_line_router
 from app.routers.solutions import router as solutions_router
 from app.routers.solution_map import router as solution_map_router
+from app.routers.import_export import router as import_export_router
 
 app = FastAPI(title="D^t Quality Roadmap", version="0.1.0")
 
@@ -32,6 +33,7 @@ app.include_router(plant_router)
 app.include_router(tank_line_router)
 app.include_router(solutions_router)
 app.include_router(solution_map_router)
+app.include_router(import_export_router)
 
 
 @app.get("/api/v1/health")

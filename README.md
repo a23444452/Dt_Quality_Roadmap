@@ -71,9 +71,14 @@
 
 ### 前置需求
 
-- Python 3.11+
-- Node.js 20+
-- npm 9+
+| 軟體 | 最低版本 | 下載連結 |
+|------|---------|---------|
+| Python | 3.11+ | https://www.python.org/downloads/ |
+| Node.js | 20+ | https://nodejs.org/ |
+| npm | 9+ | 隨 Node.js 一同安裝 |
+| Git | 2.30+ | https://git-scm.com/downloads |
+
+> **Windows 使用者注意**：安裝 Python 時請勾選 **「Add Python to PATH」**，安裝 Node.js 時請勾選 **「Add to PATH」**。
 
 ### 1. Clone 專案
 
@@ -84,64 +89,26 @@ cd Dt_Quality_Roadmap
 
 ---
 
-## Windows 快速啟動
-
-### 首次設定
-
-雙擊執行以下其中一個腳本：
-
-| 腳本 | 適用環境 |
-|------|----------|
-| `scripts\setup.bat` | CMD |
-| `scripts\setup.ps1` | PowerShell |
-
-腳本會自動完成：
-1. 建立 Python 虛擬環境
-2. 安裝 Backend 依賴
-3. 建立 `.env` 環境變數檔
-4. 執行資料庫遷移
-5. 載入範例資料
-6. 安裝 Frontend 依賴
-
-### 啟動開發伺服器
-
-| 腳本 | 說明 |
-|------|------|
-| `scripts\start-dev.bat` / `.ps1` | 同時啟動 Backend + Frontend |
-| `scripts\start-backend.bat` / `.ps1` | 僅啟動 Backend |
-| `scripts\start-frontend.bat` / `.ps1` | 僅啟動 Frontend |
-
-啟動後：
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API 文件: http://localhost:8000/docs
-
-### 預設管理員帳號
-
-| 欄位 | 值 |
-|------|---|
-| Username | `admin` |
-| Password | `Admin123!` |
-
----
-
-## 手動安裝 (macOS/Linux)
-
 ### 2. 啟動 Backend
 
+<details>
+<summary><b>macOS / Linux</b></summary>
+
 ```bash
-# 建立 Python 虛擬環境
+# 進入後端目錄
 cd backend
-python -m venv .venv
-source .venv/bin/activate  # macOS/Linux
-# .venv\Scripts\activate   # Windows
+
+# 建立 Python 虛擬環境
+python3 -m venv .venv
+source .venv/bin/activate
 
 # 安裝依賴
 pip install -r requirements.txt
 
-# 建立環境變數檔 (複製範本並修改)
+# 建立環境變數檔
 cp .env.example .env
-# 編輯 .env 設定 JWT_SECRET (至少 64 字元的隨機字串)
+# 用文字編輯器開啟 .env，將 JWT_SECRET 改為至少 64 字元的隨機字串
+# 例如: JWT_SECRET=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01
 
 # 執行資料庫遷移
 alembic upgrade head
@@ -153,14 +120,111 @@ python -m app.seed
 uvicorn app.main:app --reload --port 8000
 ```
 
-Backend 啟動後可透過 http://localhost:8000/docs 查看自動生成的 API 文件 (Swagger UI)。
+</details>
+
+<details open>
+<summary><b>Windows (PowerShell)</b></summary>
+
+#### Step 1: 開啟 PowerShell
+
+按 `Win + X` → 選擇「Windows PowerShell」或「終端機」。
+
+#### Step 2: 進入後端目錄並建立虛擬環境
+
+```powershell
+cd backend
+
+# 建立虛擬環境
+python -m venv .venv
+
+# 啟動虛擬環境
+.venv\Scripts\Activate.ps1
+```
+
+> **如果出現「無法載入 .ps1 因為這個系統上的指令碼執行已停用」錯誤**，請先執行：
+> ```powershell
+> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
+> 然後重新執行 `.venv\Scripts\Activate.ps1`。
+
+啟動成功後，終端機提示符前方會出現 `(.venv)` 字樣。
+
+#### Step 3: 安裝 Python 依賴
+
+```powershell
+pip install -r requirements.txt
+```
+
+> **如果 `pymssql` 安裝失敗**（Windows 常見），可暫時忽略，開發階段使用 SQLite 不需要此套件：
+> ```powershell
+> pip install -r requirements.txt 2>$null
+> # 或手動安裝除 pymssql 以外的套件
+> pip install fastapi uvicorn sqlalchemy alembic pydantic-settings python-jose passlib python-multipart openpyxl httpx pytest pytest-asyncio bcrypt slowapi
+> ```
+
+#### Step 4: 建立環境變數檔
+
+```powershell
+copy .env.example .env
+```
+
+用記事本或 VS Code 開啟 `.env` 檔案，修改 `JWT_SECRET`：
+
+```powershell
+notepad .env
+```
+
+將 `JWT_SECRET=change-me-to-random-64-chars` 改為一個至少 64 字元的隨機字串，例如：
+
+```
+JWT_SECRET=MySecretKeyThatIsAtLeast64CharactersLongForProductionUsePleaseChange
+```
+
+儲存並關閉。
+
+#### Step 5: 執行資料庫遷移與載入範例資料
+
+```powershell
+# 建立資料庫結構
+alembic upgrade head
+
+# 載入範例資料 (包含管理員帳號)
+python -m app.seed
+```
+
+正常會看到：`Database seeded successfully!`
+
+#### Step 6: 啟動 Backend 伺服器
+
+```powershell
+uvicorn app.main:app --reload --port 8000
+```
+
+看到以下輸出表示啟動成功：
+
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to stop)
+INFO:     Started reloader process
+```
+
+驗證：開啟瀏覽器前往 http://localhost:8000/docs ，應可看到 Swagger API 文件。
+
+**保持此終端機視窗開啟，不要關閉。**
+
+</details>
+
+---
 
 ### 3. 啟動 Frontend
 
-開啟新的終端機視窗：
+開啟**新的終端機視窗**（macOS: 新 Terminal 分頁 / Windows: 新的 PowerShell 視窗）。
+
+<details>
+<summary><b>macOS / Linux</b></summary>
 
 ```bash
-cd frontend
+# 從專案根目錄進入前端目錄
+cd Dt_Quality_Roadmap/frontend
 
 # 安裝依賴
 npm install
@@ -169,20 +233,104 @@ npm install
 npm run dev
 ```
 
-Frontend 開發伺服器啟動於 http://localhost:5173，已設定 proxy 將 `/api` 請求轉發至 Backend。
+</details>
+
+<details open>
+<summary><b>Windows (PowerShell)</b></summary>
+
+```powershell
+# 進入前端目錄 (從專案根目錄)
+cd frontend
+
+# 安裝依賴
+npm install
+```
+
+> **如果出現 `npm: command not found`**，表示 Node.js 未加入 PATH。請重新安裝 Node.js 並確認勾選「Add to PATH」，或手動將 `C:\Program Files\nodejs\` 加入系統環境變數。
+
+```powershell
+# 啟動開發伺服器
+npm run dev
+```
+
+看到以下輸出表示啟動成功：
+
+```
+  VITE v6.x.x  ready in xxx ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+```
+
+</details>
+
+Frontend 開發伺服器啟動於 http://localhost:5173，已設定 proxy 將 `/api` 請求自動轉發至 Backend (port 8000)。
+
+---
 
 ### 4. 登入系統
 
-開啟瀏覽器前往 http://localhost:5173
-
-使用 Seed 資料預設的管理員帳號登入：
+1. 開啟瀏覽器前往 http://localhost:5173
+2. 使用 Seed 資料預設的管理員帳號登入：
 
 | 欄位 | 值 |
 |------|---|
 | Username | `admin` |
 | Password | `Admin123!` |
 
-登入後即可看到 Dashboard，左側 Sidebar 可切換各功能頁面。
+3. 登入後即可看到 Dashboard，左側 Sidebar 可切換各功能頁面。
+
+---
+
+### 常見問題排除
+
+<details>
+<summary><b>Q: Windows 上 <code>python</code> 指令找不到？</b></summary>
+
+Windows 可能需要使用 `python` 而非 `python3`。如果兩者都無法使用：
+
+1. 開啟「系統設定」→「應用程式」→「應用程式執行別名」
+2. 關閉「應用程式安裝程式 python.exe」和「應用程式安裝程式 python3.exe」
+3. 確認 Python 安裝目錄已加入 PATH 環境變數
+
+</details>
+
+<details>
+<summary><b>Q: <code>alembic upgrade head</code> 出現 ModuleNotFoundError？</b></summary>
+
+確認虛擬環境已啟動（終端機前方有 `(.venv)` 字樣）。如果沒有：
+- macOS/Linux: `source .venv/bin/activate`
+- Windows: `.venv\Scripts\Activate.ps1`
+
+</details>
+
+<details>
+<summary><b>Q: Frontend 頁面顯示但 API 呼叫失敗 (Network Error)？</b></summary>
+
+確認 Backend 伺服器正在運行（port 8000）。Frontend 的 Vite 開發伺服器會將 `/api` 請求 proxy 到 `http://localhost:8000`，Backend 必須同時啟動。
+
+</details>
+
+<details>
+<summary><b>Q: Windows 上 <code>bcrypt</code> 安裝失敗？</b></summary>
+
+嘗試安裝 Microsoft Visual C++ Build Tools：
+1. 前往 https://visualstudio.microsoft.com/visual-cpp-build-tools/
+2. 下載並安裝，勾選「C++ 建置工具」
+3. 重新開啟 PowerShell 並執行 `pip install -r requirements.txt`
+
+</details>
+
+<details>
+<summary><b>Q: <code>npm install</code> 很慢或失敗？</b></summary>
+
+嘗試切換 npm registry：
+```powershell
+npm config set registry https://registry.npmmirror.com
+npm install
+```
+
+</details>
 
 ---
 

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.dependencies import get_db
+from app.middleware.rate_limit import limiter
 from app.models.user import User
 from app.schemas.auth import (
     ForgotPasswordRequest,
@@ -29,7 +30,8 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
 @router.post("/login")
-def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, body: LoginRequest, response: Response, db: Session = Depends(get_db)):
     user = authenticate_user(db, body.username, body.password)
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid credentials or inactive account")

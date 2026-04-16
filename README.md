@@ -82,6 +82,51 @@ git clone https://github.com/a23444452/Dt_Quality_Roadmap.git
 cd Dt_Quality_Roadmap
 ```
 
+---
+
+## Windows 快速啟動
+
+### 首次設定
+
+雙擊執行以下其中一個腳本：
+
+| 腳本 | 適用環境 |
+|------|----------|
+| `scripts\setup.bat` | CMD |
+| `scripts\setup.ps1` | PowerShell |
+
+腳本會自動完成：
+1. 建立 Python 虛擬環境
+2. 安裝 Backend 依賴
+3. 建立 `.env` 環境變數檔
+4. 執行資料庫遷移
+5. 載入範例資料
+6. 安裝 Frontend 依賴
+
+### 啟動開發伺服器
+
+| 腳本 | 說明 |
+|------|------|
+| `scripts\start-dev.bat` / `.ps1` | 同時啟動 Backend + Frontend |
+| `scripts\start-backend.bat` / `.ps1` | 僅啟動 Backend |
+| `scripts\start-frontend.bat` / `.ps1` | 僅啟動 Frontend |
+
+啟動後：
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API 文件: http://localhost:8000/docs
+
+### 預設管理員帳號
+
+| 欄位 | 值 |
+|------|---|
+| Username | `admin` |
+| Password | `Admin123!` |
+
+---
+
+## 手動安裝 (macOS/Linux)
+
 ### 2. 啟動 Backend
 
 ```bash

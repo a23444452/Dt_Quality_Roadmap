@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { ChevronDown, LogOut, User } from 'lucide-react'
 import {
   DropdownMenu,
@@ -12,6 +13,7 @@ import { useAuth } from '@/features/auth/AuthContext'
 
 export function Header() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-white px-6 shadow-sm">
@@ -34,7 +36,10 @@ export function Header() {
             {user?.username}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem disabled className="flex items-center gap-2 text-gray-400 cursor-not-allowed">
+          <DropdownMenuItem
+            onClick={() => navigate('/profile')}
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <User size={14} />
             Profile
           </DropdownMenuItem>

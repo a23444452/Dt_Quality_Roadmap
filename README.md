@@ -282,6 +282,82 @@ Frontend 開發伺服器啟動於 http://localhost:5173，已設定 proxy 將 `/
 
 ---
 
+### 5. 停止伺服器
+
+開發完成後，使用以下方式停止前後端伺服器。
+
+**方法一：在各終端機視窗按 `Ctrl + C`**
+
+如果 Backend 和 Frontend 分別在兩個終端機視窗前景執行，直接在各視窗按 `Ctrl + C` 即可停止。
+
+**方法二：使用指令結束背景程序**
+
+如果伺服器在背景執行，使用以下指令：
+
+<details>
+<summary><b>macOS / Linux</b></summary>
+
+```bash
+# 停止 Backend
+pkill -f uvicorn
+
+# 停止 Frontend
+pkill -f vite
+
+# 或一次全部停止
+pkill -f "uvicorn|vite"
+```
+
+</details>
+
+<details open>
+<summary><b>Windows (PowerShell)</b></summary>
+
+```powershell
+# 停止 Backend
+Get-Process | Where-Object { $_.ProcessName -like "*uvicorn*" -or $_.CommandLine -like "*uvicorn*" } | Stop-Process -Force
+
+# 停止 Frontend
+Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# 或使用 taskkill
+taskkill /F /IM "python.exe" /FI "WINDOWTITLE eq uvicorn*"
+taskkill /F /IM "node.exe"
+```
+
+> **注意**：`taskkill /F /IM "node.exe"` 會結束所有 Node.js 程序。如果你有其他 Node.js 應用在執行，建議改用 `Ctrl + C` 在各視窗手動停止。
+
+</details>
+
+**方法三：確認程序已停止**
+
+<details>
+<summary><b>macOS / Linux</b></summary>
+
+```bash
+# 確認 port 8000 (Backend) 和 5173 (Frontend) 已釋放
+lsof -i :8000
+lsof -i :5173
+# 如果有輸出，表示還有程序佔用，使用 kill <PID> 結束
+```
+
+</details>
+
+<details open>
+<summary><b>Windows (PowerShell)</b></summary>
+
+```powershell
+# 確認 port 是否已釋放
+netstat -ano | findstr ":8000"
+netstat -ano | findstr ":5173"
+# 如果有輸出，記下最後一欄的 PID，然後執行：
+# taskkill /F /PID <PID>
+```
+
+</details>
+
+---
+
 ### 常見問題排除
 
 <details>

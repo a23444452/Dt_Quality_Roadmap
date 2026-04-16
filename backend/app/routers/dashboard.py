@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db, get_current_user
 from app.models.user import User
 from app.schemas.common import ok
-from app.services.dashboard_service import get_summary
+from app.services.dashboard_service import get_defect_analysis, get_process_analysis, get_summary
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 
@@ -23,14 +23,15 @@ def defect_analysis(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return ok({"group_by": group_by, "data": []})
+    data = get_defect_analysis(db, process_id=process_id, plant_id=plant_id, group_by=group_by)
+    return ok(data)
 
 
 @router.get("/process-analysis")
 def process_analysis(
     plant_id: int | None = None,
-    group_by: str = "station",
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return ok({"group_by": group_by, "data": []})
+    data = get_process_analysis(db, plant_id=plant_id)
+    return ok(data)

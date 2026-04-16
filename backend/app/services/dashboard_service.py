@@ -105,3 +105,83 @@ def get_summary(db: Session) -> dict:
     }
 
     return {"kpi": kpi, "sankey": sankey}
+
+
+def get_process_analysis(db: Session, plant_id: int | None = None) -> dict:
+    """Return process → station → solution count data for the process map."""
+    query = (
+        db.query(
+            Process.name.label("process"),
+            Station.name.label("station"),
+            Station.id.label("station_id"),
+            func.count(func.distinct(Solution.id)).label("solution_count"),
+        )
+        .join(Station, Station.process_id == Process.id)
+        .join(Solution, Solution.station_id == Station.id)
+        .join(SolutionMap, SolutionMap.solution_id == Solution.id)
+    )
+
+    if plant_id:
+        query = query.join(TankLine, SolutionMap.tank_line_id == TankLine.id).filter(
+            TankLine.plant_id == plant_id
+        )
+
+    query = query.filter(Solution.is_active == True).group_by(  # noqa: E712
+        Process.name, Station.name, Station.id
+    ).order_by(Process.name, Station.name)
+
+    rows = query.all()
+
+    nodes = [
+        {
+            "process": row.process,
+            "station": row.station,
+            "station_id": row.station_id,
+            "solution_count": row.solution_count,
+        }
+        for row in rows
+    ]
+
+    return {"nodes": nodes}
+
+
+def get_defect_analysis(
+    db: Session,
+    process_id: int | None = None,
+    plant_id: int | None = None,
+    group_by: str = "defect_category",
+) -> dict:
+    """Return defect analysis grouped by category or type."""
+    if group_by == "defect_type":
+        label_col = DefectType.name
+        group_col = DefectType.name
+    else:
+        label_col = DefectCategory.name
+        group_col = DefectCategory.name
+
+    query = (
+        db.query(
+            label_col.label("label"),
+            func.count(SolutionMap.id).label("total"),
+        )
+        .join(DefectType, DefectType.category_id == DefectCategory.id)
+        .join(Solution, Solution.defect_type_id == DefectType.id)
+        .join(SolutionMap, SolutionMap.solution_id == Solution.id)
+    )
+
+    if process_id:
+        query = query.join(Station, Solution.station_id == Station.id).filter(
+            Station.process_id == process_id
+        )
+    if plant_id:
+        query = query.join(TankLine, SolutionMap.tank_line_id == TankLine.id).filter(
+            TankLine.plant_id == plant_id
+        )
+
+    query = query.group_by(group_col).order_by(func.count(SolutionMap.id).desc())
+    rows = query.all()
+
+    return {
+        "group_by": group_by,
+        "data": [{"label": row.label, "count": row.total} for row in rows],
+    }

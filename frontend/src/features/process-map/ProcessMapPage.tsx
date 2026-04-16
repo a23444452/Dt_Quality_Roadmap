@@ -28,74 +28,79 @@ const PROCESS_COLORS: Record<string, string> = {
 
 function buildGraphOption(nodes: ProcessNode[]) {
   const processes = Array.from(new Set(nodes.map((n) => n.process)))
-  const processCount = processes.length
+  const processCount = processes.length || 1
 
-  const graphNodes = nodes.map((n, i) => {
+  const graphNodes = nodes.map((n) => {
     const pIdx = processes.indexOf(n.process)
     const nodesInProcess = nodes.filter((x) => x.process === n.process)
     const posInProcess = nodesInProcess.indexOf(n)
     const total = nodesInProcess.length
-    const xBase = (pIdx + 0.5) / processCount
-    const ySpread = total > 1 ? (posInProcess / (total - 1)) * 0.6 + 0.2 : 0.5
+    const xPos = ((pIdx + 0.5) / processCount) * 800 + 100
+    const yPos = total > 1 ? (posInProcess / (total - 1)) * 300 + 100 : 250
 
     return {
       id: String(n.station_id),
-      name: n.station,
+      name: `${n.station}\n(${n.solution_count})`,
       value: n.solution_count,
-      x: xBase * 1000,
-      y: ySpread * 600,
-      symbolSize: Math.max(30, Math.min(80, 20 + n.solution_count * 4)),
+      x: xPos,
+      y: yPos,
+      symbolSize: Math.max(40, Math.min(90, 30 + n.solution_count * 5)),
       itemStyle: { color: PROCESS_COLORS[n.process] ?? '#ee6666' },
-      label: { show: true, formatter: `{a|${n.station}}\n{b|${n.solution_count}}` },
-      category: pIdx,
+      label: {
+        show: true,
+        fontSize: 11,
+        fontWeight: 'bold' as const,
+        color: '#fff',
+        position: 'inside' as const,
+      },
     }
   })
 
-  const links: Array<{ source: string; target: string }> = []
+  // Connect last station of each process to first station of next process
+  const links: Array<{ source: string; target: string; lineStyle?: object }> = []
   for (let p = 0; p < processes.length - 1; p++) {
-    const cur = nodes.filter((n) => n.process === processes[p])
-    const next = nodes.filter((n) => n.process === processes[p + 1])
-    if (cur.length && next.length) {
-      links.push({
-        source: String(cur[0].station_id),
-        target: String(next[0].station_id),
-      })
+    const curStations = nodes.filter((n) => n.process === processes[p])
+    const nextStations = nodes.filter((n) => n.process === processes[p + 1])
+    for (const cur of curStations) {
+      for (const next of nextStations) {
+        links.push({
+          source: String(cur.station_id),
+          target: String(next.station_id),
+          lineStyle: { width: 1.5, curveness: 0.2, color: '#bbb' },
+        })
+      }
     }
   }
 
   return {
-    tooltip: { trigger: 'item', formatter: (p: { data: { name: string; value: number } }) => `${p.data.name}: ${p.data.value} solutions` },
-    legend: {
-      data: processes.map((p) => ({ name: p, itemStyle: { color: PROCESS_COLORS[p] ?? '#ee6666' } })),
+    tooltip: {
+      trigger: 'item' as const,
+      formatter: (p: { data?: { value?: number; name?: string } }) => {
+        if (!p.data) return ''
+        const name = (p.data.name ?? '').split('\n')[0]
+        return `${name}: ${p.data.value ?? 0} solutions`
+      },
     },
     series: [
       {
         type: 'graph',
         layout: 'none',
-        symbolSize: 50,
         roam: true,
-        label: {
-          show: true,
-          rich: {
-            a: { fontSize: 12, fontWeight: 'bold', color: '#333' },
-            b: { fontSize: 10, color: '#666' },
-          },
-        },
         edgeSymbol: ['none', 'arrow'],
-        edgeSymbolSize: [0, 10],
+        edgeSymbolSize: [0, 12],
         data: graphNodes,
         links,
-        lineStyle: { color: '#aaa', width: 2, curveness: 0.1 },
+        lineStyle: { color: '#aaa', width: 2 },
         emphasis: { focus: 'adjacency' },
       },
     ],
     graphic: processes.map((p, i) => ({
       type: 'text',
-      left: `${((i + 0.5) / processCount) * 100}%`,
-      top: 16,
+      left: `${((i + 0.5) / processCount) * 80 + 10}%`,
+      top: 10,
       style: {
         text: p,
-        font: 'bold 14px sans-serif',
+        font: 'bold 16px sans-serif',
         fill: PROCESS_COLORS[p] ?? '#ee6666',
         textAlign: 'center',
       },
@@ -141,7 +146,25 @@ export function ProcessMapPage() {
     )
   }
 
-  const option = buildGraphOption(data.nodes)
+  const nodes = data.nodes ?? []
+
+  if (nodes.length === 0) {
+    return (
+      <div className="space-y-6 p-6">
+        <div>
+          <h1 className="text-2xl font-bold">Process Map</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Click a station node to view solution details
+          </p>
+        </div>
+        <div className="flex items-center justify-center py-24 text-muted-foreground rounded-lg border bg-white">
+          No process data available. Add solutions and solution map entries first.
+        </div>
+      </div>
+    )
+  }
+
+  const option = buildGraphOption(nodes)
 
   return (
     <div className="space-y-6 p-6">

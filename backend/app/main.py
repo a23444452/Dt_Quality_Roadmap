@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import auth
+from app.routers.statuses import router as statuses_router
+from app.routers.defects import category_router, type_router
+from app.routers.processes import process_router, station_router
+from app.routers.plants import plant_router, tank_line_router
 
 app = FastAPI(title="D^t Quality Roadmap", version="0.1.0")
 
@@ -15,6 +19,13 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(statuses_router)
+app.include_router(category_router)
+app.include_router(type_router)
+app.include_router(process_router)
+app.include_router(station_router)
+app.include_router(plant_router)
+app.include_router(tank_line_router)
 
 
 @app.get("/api/v1/health")

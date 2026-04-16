@@ -7,6 +7,7 @@ import { RegisterPage } from '@/features/auth/RegisterPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { DashboardPage } from '@/features/dashboard/DashboardPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth()
@@ -30,7 +31,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<div className="text-xl">Dashboard (coming soon)</div>} />
+        <Route index element={<DashboardPage />} />
         <Route path="solution-map" element={<div>Solution Map (coming soon)</div>} />
         <Route path="process-map" element={<div>Process Map (coming soon)</div>} />
         <Route path="data-management" element={<div>Data Management (coming soon)</div>} />

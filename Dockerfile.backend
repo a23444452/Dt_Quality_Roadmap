@@ -1,7 +1,19 @@
 FROM python:3.12-slim
 WORKDIR /app
+
+# 安裝依賴
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# 複製應用程式
 COPY backend/ .
+
+# 環境變數 (可在 docker-compose 或執行時覆寫)
+ENV GUNICORN_WORKERS=4
+ENV GUNICORN_TIMEOUT=120
+ENV GUNICORN_LOG_LEVEL=info
+
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# 生產環境使用 Gunicorn 多 Worker 模式
+CMD ["gunicorn", "app.main:app", "-c", "gunicorn.conf.py"]

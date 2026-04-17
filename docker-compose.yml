@@ -8,6 +8,20 @@ services:
       - "8000:8000"
     env_file:
       - backend/.env
+    environment:
+      # Worker 數量 (建議: CPU核心數 x 2 + 1)
+      - GUNICORN_WORKERS=4
+      # 請求超時時間 (秒)
+      - GUNICORN_TIMEOUT=120
+      # 日誌等級: debug, info, warning, error, critical
+      - GUNICORN_LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   frontend:
     build:
@@ -17,3 +31,4 @@ services:
       - "80:80"
     depends_on:
       - backend
+    restart: unless-stopped

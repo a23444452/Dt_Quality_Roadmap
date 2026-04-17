@@ -934,6 +934,9 @@ docker-compose exec backend python -m app.seed
 | `SMTP_PORT` | SMTP 埠號 | `587` |
 | `SMTP_USER` | SMTP 帳號 | (空) |
 | `SMTP_PASSWORD` | SMTP 密碼 | (空) |
+| `GUNICORN_WORKERS` | Worker 進程數量 | CPU核心數 × 2 + 1 |
+| `GUNICORN_TIMEOUT` | 請求超時時間 (秒) | `120` |
+| `GUNICORN_LOG_LEVEL` | 日誌等級 (debug/info/warning/error) | `info` |
 
 ### MS SQL Server 連線
 
@@ -941,6 +944,77 @@ docker-compose exec backend python -m app.seed
 
 ```
 DATABASE_URL=mssql+pymssql://username:password@host:1433/database_name
+```
+
+---
+
+## 生產環境部署
+
+### 多 Worker 模式 (方案 A: 20-50 人)
+
+生產環境使用 Gunicorn 多 Worker 模式，充分利用多核 CPU：
+
+#### 使用腳本啟動
+
+<details>
+<summary><b>macOS / Linux</b></summary>
+
+```bash
+./scripts/start-prod.sh
+```
+
+</details>
+
+<details open>
+<summary><b>Windows</b></summary>
+
+```powershell
+.\scripts\start-prod.ps1
+# 或
+scripts\start-prod.bat
+```
+
+</details>
+
+#### 手動啟動
+
+```bash
+cd backend
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# 使用 gunicorn.conf.py 配置檔
+gunicorn app.main:app -c gunicorn.conf.py
+
+# 或直接指定參數
+gunicorn app.main:app \
+  -w 4 \
+  -k uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 \
+  --timeout 120
+```
+
+#### Worker 數量建議
+
+| 伺服器 CPU | 建議 Workers | 預估支援人數 |
+|------------|-------------|-------------|
+| 2 核心 | 5 | 20-30 人 |
+| 4 核心 | 9 | 40-60 人 |
+| 8 核心 | 17 | 80-120 人 |
+
+> 公式: `(CPU 核心數 × 2) + 1`
+
+#### Docker 生產部署
+
+```bash
+# 調整 docker-compose.yml 中的 GUNICORN_WORKERS 環境變數
+docker-compose up -d --build
+```
+
+```yaml
+# docker-compose.yml 範例
+environment:
+  - GUNICORN_WORKERS=9  # 依伺服器 CPU 調整
+  - GUNICORN_TIMEOUT=120
 ```
 
 ---

@@ -4,11 +4,19 @@ import apiClient from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
+interface ImportError {
+  row: number
+  field: string
+  message: string
+}
+
 interface ImportPreview {
-  new_count: number
-  updated_count: number
-  error_count: number
-  errors: string[]
+  import_id: string
+  total_rows: number
+  new_records: number
+  updated_records: number
+  errors: ImportError[]
+  warnings: string[]
 }
 
 export function ImportSection() {
@@ -23,24 +31,20 @@ export function ImportSection() {
       const form = new FormData()
       form.append('file', f)
       form.append('format', format)
-      form.append('dry_run', 'true')
-      const resp = await apiClient.post<{ data: ImportPreview }>('/solutions/import', form, {
+      const resp = await apiClient.post<{ data: ImportPreview }>('/import-export/import', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       return resp.data.data
     },
-    onSuccess: (data) => setPreview(data),
+    onSuccess: (data) => {
+      setPreview(data)
+    },
   })
 
   const confirmMutation = useMutation({
     mutationFn: async () => {
-      if (!file) return
-      const form = new FormData()
-      form.append('file', file)
-      form.append('format', format)
-      const resp = await apiClient.post('/solutions/import', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      if (!preview?.import_id) return
+      const resp = await apiClient.post('/import-export/import/confirm', { import_id: preview.import_id })
       return resp.data
     },
     onSuccess: () => {
@@ -119,32 +123,33 @@ export function ImportSection() {
       {preview && (
         <div className="rounded-lg border p-4 space-y-3">
           <h4 className="font-medium">Import Preview</h4>
+          <p className="text-sm text-muted-foreground">Total rows: {preview.total_rows}</p>
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center p-3 bg-green-50 rounded">
-              <p className="text-2xl font-bold text-green-700">{preview.new_count}</p>
+              <p className="text-2xl font-bold text-green-700">{preview.new_records}</p>
               <p className="text-xs text-green-600">New</p>
             </div>
             <div className="text-center p-3 bg-blue-50 rounded">
-              <p className="text-2xl font-bold text-blue-700">{preview.updated_count}</p>
+              <p className="text-2xl font-bold text-blue-700">{preview.updated_records}</p>
               <p className="text-xs text-blue-600">Updated</p>
             </div>
             <div className="text-center p-3 bg-red-50 rounded">
-              <p className="text-2xl font-bold text-red-700">{preview.error_count}</p>
+              <p className="text-2xl font-bold text-red-700">{preview.errors.length}</p>
               <p className="text-xs text-red-600">Errors</p>
             </div>
           </div>
           {preview.errors.length > 0 && (
-            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+            <div className="text-sm text-red-600 bg-red-50 p-2 rounded space-y-1">
               {preview.errors.slice(0, 5).map((err, i) => (
-                <p key={i}>{err}</p>
+                <p key={i}>Row {err.row}: {err.message}</p>
               ))}
-              {preview.errors.length > 5 && <p>...and {preview.errors.length - 5} more</p>}
+              {preview.errors.length > 5 && <p>...and {preview.errors.length - 5} more errors</p>}
             </div>
           )}
           <div className="flex gap-2">
             <Button
               onClick={() => confirmMutation.mutate()}
-              disabled={confirmMutation.isPending || preview.error_count > 0}
+              disabled={confirmMutation.isPending || preview.errors.length > 0}
             >
               {confirmMutation.isPending ? 'Importing...' : 'Confirm Import'}
             </Button>

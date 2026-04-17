@@ -9,13 +9,29 @@ export function ExportSection() {
 
   const exportMutation = useMutation({
     mutationFn: async () => {
-      const resp = await apiClient.get(`/solutions/export?format=${format}`, {
+      const resp = await apiClient.get(`/import-export/export?format=${format}`, {
         responseType: 'blob',
       })
       const url = window.URL.createObjectURL(new Blob([resp.data as BlobPart]))
       const link = document.createElement('a')
       link.href = url
-      link.download = `solutions_${format}_${new Date().toISOString().slice(0, 10)}.xlsx`
+      link.download = `solution_map_export_${format}_${new Date().toISOString().slice(0, 10)}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    },
+  })
+
+  const templateMutation = useMutation({
+    mutationFn: async () => {
+      const resp = await apiClient.get(`/import-export/template?format=${format}`, {
+        responseType: 'blob',
+      })
+      const url = window.URL.createObjectURL(new Blob([resp.data as BlobPart]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `import_template_${format}.xlsx`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -40,15 +56,27 @@ export function ExportSection() {
         </Select>
       </div>
 
-      <Button
-        onClick={() => exportMutation.mutate()}
-        disabled={exportMutation.isPending}
-      >
-        {exportMutation.isPending ? 'Exporting...' : 'Download'}
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          onClick={() => exportMutation.mutate()}
+          disabled={exportMutation.isPending}
+        >
+          {exportMutation.isPending ? 'Exporting...' : 'Download Export'}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => templateMutation.mutate()}
+          disabled={templateMutation.isPending}
+        >
+          {templateMutation.isPending ? 'Downloading...' : 'Download Template'}
+        </Button>
+      </div>
 
       {exportMutation.isError && (
         <p className="text-sm text-destructive">Export failed. Please try again.</p>
+      )}
+      {templateMutation.isError && (
+        <p className="text-sm text-destructive">Template download failed. Please try again.</p>
       )}
     </div>
   )

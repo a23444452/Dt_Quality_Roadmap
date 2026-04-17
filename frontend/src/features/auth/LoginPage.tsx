@@ -43,7 +43,7 @@ export function LoginPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Sign In</CardTitle>
           <CardDescription>
-            Enter your credentials to access D^t Quality Roadmap
+            Enter your credentials to access D^t Solution Roadmap
           </CardDescription>
         </CardHeader>
 

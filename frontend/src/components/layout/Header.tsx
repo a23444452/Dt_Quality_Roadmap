@@ -18,7 +18,7 @@ export function Header() {
   return (
     <header className="flex h-14 items-center justify-between border-b bg-white px-6 shadow-sm">
       <h1 className="text-lg font-semibold text-gray-800 tracking-tight">
-        D^t Quality Roadmap
+        D^t Solution Roadmap
       </h1>
 
       <DropdownMenu>

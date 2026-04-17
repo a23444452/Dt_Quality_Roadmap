@@ -71,7 +71,7 @@ export function RegisterPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Create Account</CardTitle>
           <CardDescription>
-            Register for D^t Quality Roadmap access
+            Register for D^t Solution Roadmap access
           </CardDescription>
         </CardHeader>
 

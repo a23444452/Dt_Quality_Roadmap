@@ -97,11 +97,11 @@ export function Sidebar() {
         ].join(' ')}
       >
         {/* Logo area */}
-        <div className="flex h-14 items-center justify-center border-b border-blue-800 px-2">
+        <div className="flex h-20 items-center justify-center border-b border-blue-800 px-2">
           {collapsed ? (
-            <img src="/logo.png" alt="D^t Solution Roadmap" className="h-10 w-10 object-contain" />
+            <img src="/logo.png" alt="D^t Solution Roadmap" className="h-14 w-14 object-contain" />
           ) : (
-            <img src="/logo.png" alt="D^t Solution Roadmap" className="h-12 object-contain" />
+            <img src="/logo.png" alt="D^t Solution Roadmap" className="h-16 object-contain" />
           )}
         </div>
 

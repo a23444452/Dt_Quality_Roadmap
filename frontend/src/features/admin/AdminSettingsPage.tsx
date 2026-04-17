@@ -28,14 +28,14 @@ export function AdminSettingsPage() {
   const { data: statuses, isLoading } = useQuery({
     queryKey: ['statuses'],
     queryFn: async () => {
-      const resp = await apiClient.get<ApiResponse<Status[]>>('/reference/statuses')
+      const resp = await apiClient.get<ApiResponse<Status[]>>('/statuses')
       return resp.data.data ?? []
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: number; body: Partial<StatusForm> }) =>
-      apiClient.put(`/reference/statuses/${id}`, body),
+      apiClient.put(`/statuses/${id}`, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['statuses'] })
       setOpen(false)
@@ -44,7 +44,7 @@ export function AdminSettingsPage() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (body: StatusForm) => apiClient.post('/reference/statuses', body),
+    mutationFn: (body: StatusForm) => apiClient.post('/statuses', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['statuses'] })
       setOpen(false)

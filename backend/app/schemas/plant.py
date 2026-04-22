@@ -28,12 +28,14 @@ class TankLineCreate(BaseModel):
     plant_id: int
     name: str
     code: str
+    line_type: str = "Line"  # Tank or Line
     sort_order: int = 0
 
 
 class TankLineUpdate(BaseModel):
     name: str | None = None
     code: str | None = None
+    line_type: str | None = None
     sort_order: int | None = None
     is_active: bool | None = None
 
@@ -43,6 +45,7 @@ class TankLineResponse(BaseModel):
     plant_id: int
     name: str
     code: str
+    line_type: str
     sort_order: int
     is_active: bool
 

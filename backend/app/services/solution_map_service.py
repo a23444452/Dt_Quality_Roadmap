@@ -86,6 +86,7 @@ def get_pivot_data(
         result_solutions.append({
             "id": sol.id,
             "name": sol.name,
+            "quality_attribute": sol.quality_attribute,
             "defect_type": dtype.name,
             "defect_category": dcat.name,
             "station": sta.name,
@@ -94,7 +95,7 @@ def get_pivot_data(
         })
 
     result_lines = [
-        {"id": tl.id, "key": f"line_{tl.id}", "name": tl.name, "plant": plt.name}
+        {"id": tl.id, "key": f"line_{tl.id}", "name": tl.name, "plant": plt.name, "line_type": tl.line_type}
         for tl, plt in lines
     ]
 

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(cp \"TC Finishing D^t Solution Migration_2026.xlsx\" temp_copy.xlsx)",
+      "Bash(python -c ' *)",
+      "Bash(ls -la *.pbit)",
+      "Bash(unzip -o \"Dt_Solution_Map_for_QA_New0126.pbit\" -d pbit_extract)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git add *)"
+    ]
+  }
+}

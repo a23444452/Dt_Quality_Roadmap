@@ -5,11 +5,13 @@ class SolutionCreate(BaseModel):
     defect_type_id: int
     station_id: int
     name: str
+    quality_attribute: str | None = None
     description: str | None = None
 
 
 class SolutionUpdate(BaseModel):
     name: str | None = None
+    quality_attribute: str | None = None
     description: str | None = None
     is_active: bool | None = None
 
@@ -19,6 +21,7 @@ class SolutionResponse(BaseModel):
     defect_type_id: int
     station_id: int
     name: str
+    quality_attribute: str | None
     description: str | None
     is_active: bool
 

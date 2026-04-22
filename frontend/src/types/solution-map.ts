@@ -9,6 +9,7 @@ export interface SolutionMapStatus {
 export interface SolutionRow {
   id: number
   name: string
+  quality_attribute: string | null
   defect_type: string
   defect_category: string
   station: string
@@ -21,6 +22,7 @@ export interface LineColumn {
   key: string
   name: string
   plant: string
+  line_type: string
 }
 
 export interface PivotData {

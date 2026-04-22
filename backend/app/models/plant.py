@@ -25,6 +25,7 @@ class TankLine(TimestampMixin, Base):
     plant_id: Mapped[int] = mapped_column(ForeignKey("plant.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     code: Mapped[str] = mapped_column(String(20), nullable=False)
+    line_type: Mapped[str] = mapped_column(String(10), nullable=False, default="Line")  # Tank or Line
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 

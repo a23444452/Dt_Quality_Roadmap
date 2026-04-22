@@ -13,6 +13,7 @@ class Solution(TimestampMixin, Base):
     defect_type_id: Mapped[int] = mapped_column(ForeignKey("defect_type.id"), nullable=False)
     station_id: Mapped[int] = mapped_column(ForeignKey("station.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    quality_attribute: Mapped[str | None] = mapped_column(String(200), nullable=True)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

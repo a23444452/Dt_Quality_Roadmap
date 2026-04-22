@@ -1,9 +1,12 @@
 """
-Seed script: populate the database with sample reference data.
+Seed script: populate the database with data from Excel file.
 
 Run with:
     cd backend && python -m app.seed
 """
+
+import pandas as pd
+from pathlib import Path
 
 from app.database import Base, engine, SessionLocal
 from app.models import (
@@ -20,6 +23,8 @@ from app.models import (
 )
 from app.utils.security import hash_password
 
+EXCEL_FILE = Path(__file__).resolve().parent.parent.parent / "D^t Solution Quality Roadmap.xlsx"
+
 
 def seed() -> None:
     Base.metadata.create_all(engine)
@@ -30,18 +35,45 @@ def seed() -> None:
             print("Database already seeded.")
             return
 
+        print(f"Reading Excel file: {EXCEL_FILE}")
+        xlsx = pd.ExcelFile(EXCEL_FILE)
+
         # ── Statuses ──────────────────────────────────────────────────────────
-        statuses = [
-            StatusDefinition(code="MP", name="Mass Production", color="#28A745", sort_order=1),
-            StatusDefinition(code="DEV", name="Developing", color="#FFC107", sort_order=2),
-            StatusDefinition(code="PLAN", name="Planned", color="#17A2B8", sort_order=3),
-            StatusDefinition(code="NA", name="Not Applicable", color="#6C757D", sort_order=4),
-            StatusDefinition(code="HOLD", name="On Hold", color="#DC3545", sort_order=5),
-        ]
+        df_def = pd.read_excel(xlsx, sheet_name="Definition")
+        status_colors = {
+            "MP": "#28A745",
+            "Developing": "#FFC107",
+            "Initiation": "#17A2B8",
+            "Planned": "#6F42C1",
+            "Resource constrain": "#FD7E14",
+            "No intention": "#6C757D",
+        }
+        statuses = []
+        for idx, row in df_def.iterrows():
+            status_name = row["Status"]
+            if pd.isna(status_name):
+                code = "NA"
+                name = "Not Applicable"
+                color = "#ADB5BD"
+            else:
+                code = status_name.upper().replace(" ", "_")[:20]
+                name = status_name
+                color = status_colors.get(status_name, "#6C757D")
+
+            statuses.append(StatusDefinition(
+                code=code,
+                name=name,
+                color=color,
+                sort_order=idx + 1,
+            ))
         db.add_all(statuses)
         db.flush()
+        print(f"  - Added {len(statuses)} statuses")
 
-        status_by_code = {s.code: s for s in statuses}
+        status_map = {}
+        for s in statuses:
+            status_map[s.name] = s
+            status_map[s.code] = s
 
         # ── Admin user ────────────────────────────────────────────────────────
         admin = User(
@@ -54,212 +86,248 @@ def seed() -> None:
         )
         db.add(admin)
         db.flush()
+        print("  - Added admin user")
 
         # ── Defect categories & types ─────────────────────────────────────────
-        cat_surface = DefectCategory(
-            name="Surface",
-            description="Surface appearance defects",
-            sort_order=1,
-        )
-        cat_structural = DefectCategory(
-            name="Structural",
-            description="Internal structural defects",
-            sort_order=2,
-        )
-        cat_dimensional = DefectCategory(
-            name="Dimensional",
-            description="Out-of-tolerance dimensions",
-            sort_order=3,
-        )
-        db.add_all([cat_surface, cat_structural, cat_dimensional])
-        db.flush()
+        df_defect = pd.read_excel(xlsx, sheet_name="Defect")
+        categories = {}
+        defect_types = {}
 
-        defect_types = [
-            DefectType(category_id=cat_surface.id, name="Scratch", sort_order=1),
-            DefectType(category_id=cat_surface.id, name="Pit", sort_order=2),
-            DefectType(category_id=cat_surface.id, name="Stain", sort_order=3),
-            DefectType(category_id=cat_structural.id, name="Crack", sort_order=1),
-            DefectType(category_id=cat_structural.id, name="Porosity", sort_order=2),
-            DefectType(category_id=cat_dimensional.id, name="Warpage", sort_order=1),
-            DefectType(category_id=cat_dimensional.id, name="Thickness Deviation", sort_order=2),
-        ]
-        db.add_all(defect_types)
-        db.flush()
+        for idx, row in df_defect.iterrows():
+            cat_name = row["Defect category"]
+            type_name = row["Defect type"]
 
-        dt_scratch = defect_types[0]
-        dt_pit = defect_types[1]
-        dt_crack = defect_types[3]
-        dt_porosity = defect_types[4]
+            if pd.isna(cat_name) or pd.isna(type_name):
+                continue
+
+            if cat_name not in categories:
+                cat = DefectCategory(
+                    name=cat_name,
+                    sort_order=len(categories) + 1,
+                )
+                db.add(cat)
+                db.flush()
+                categories[cat_name] = cat
+
+            dt = DefectType(
+                category_id=categories[cat_name].id,
+                name=type_name,
+                sort_order=len([d for d in defect_types.values() if d.category_id == categories[cat_name].id]) + 1,
+            )
+            db.add(dt)
+            db.flush()
+            defect_types[type_name] = dt
+
+        print(f"  - Added {len(categories)} defect categories, {len(defect_types)} defect types")
 
         # ── Processes & stations ──────────────────────────────────────────────
-        proc_system = Process(
-            name="System",
-            description="System-level pre-process",
-            sort_order=1,
-        )
-        proc_melting = Process(
-            name="Melting",
-            description="Metal melting process",
-            sort_order=2,
-        )
-        proc_finishing = Process(
-            name="Finishing",
-            description="Surface finishing process",
-            sort_order=3,
-        )
-        db.add_all([proc_system, proc_melting, proc_finishing])
-        db.flush()
+        df_station = pd.read_excel(xlsx, sheet_name="Station")
+        processes = {}
+        stations = {}
 
-        stations = [
-            Station(process_id=proc_system.id, name="Incoming Inspection", sort_order=1),
-            Station(process_id=proc_melting.id, name="Furnace", sort_order=1),
-            Station(process_id=proc_melting.id, name="Casting", sort_order=2),
-            Station(process_id=proc_finishing.id, name="Polishing", sort_order=1),
-            Station(process_id=proc_finishing.id, name="Coating", sort_order=2),
-            Station(process_id=proc_finishing.id, name="Final QC", sort_order=3),
-        ]
-        db.add_all(stations)
-        db.flush()
+        for idx, row in df_station.iterrows():
+            proc_cat = row["Process category"]
+            proc_name = row["Process"]
+            sta_name = row["Station"]
 
-        st_furnace = stations[1]
-        st_casting = stations[2]
-        st_polishing = stations[3]
-        st_coating = stations[4]
+            if pd.isna(proc_cat) or pd.isna(sta_name):
+                continue
+
+            if proc_cat not in processes:
+                proc = Process(
+                    name=proc_cat,
+                    sort_order=len(processes) + 1,
+                )
+                db.add(proc)
+                db.flush()
+                processes[proc_cat] = proc
+
+            sta_key = f"{proc_cat}|{sta_name}"
+            if sta_key not in stations:
+                sta = Station(
+                    process_id=processes[proc_cat].id,
+                    name=sta_name,
+                    sort_order=len([s for s in stations.values() if s.process_id == processes[proc_cat].id]) + 1,
+                )
+                db.add(sta)
+                db.flush()
+                stations[sta_key] = sta
+
+        print(f"  - Added {len(processes)} processes, {len(stations)} stations")
 
         # ── Plants & tank lines ───────────────────────────────────────────────
-        plant_a = Plant(name="Plant Alpha", code="PA", sort_order=1)
-        plant_b = Plant(name="Plant Beta", code="PB", sort_order=2)
-        db.add_all([plant_a, plant_b])
-        db.flush()
+        df_tankline = pd.read_excel(xlsx, sheet_name="Tank_Line")
+        plants = {}
+        tank_lines = {}
 
-        tank_lines = [
-            TankLine(plant_id=plant_a.id, name="Line A-1", code="A1", sort_order=1),
-            TankLine(plant_id=plant_a.id, name="Line A-2", code="A2", sort_order=2),
-            TankLine(plant_id=plant_a.id, name="Line A-3", code="A3", sort_order=3),
-            TankLine(plant_id=plant_b.id, name="Line B-1", code="B1", sort_order=1),
-            TankLine(plant_id=plant_b.id, name="Line B-2", code="B2", sort_order=2),
-            TankLine(plant_id=plant_b.id, name="Line B-3", code="B3", sort_order=3),
-        ]
-        db.add_all(tank_lines)
-        db.flush()
+        for idx, row in df_tankline.iterrows():
+            plant_code = row["Plant"]
+            line_type = row["Line/Tank"]
+            line_code = row["No"]
 
-        tl_a1, tl_a2, tl_a3, tl_b1, tl_b2, tl_b3 = tank_lines
+            if pd.isna(plant_code) or pd.isna(line_code):
+                continue
+
+            if plant_code not in plants:
+                plant = Plant(
+                    name=f"Plant {plant_code}",
+                    code=plant_code,
+                    sort_order=len(plants) + 1,
+                )
+                db.add(plant)
+                db.flush()
+                plants[plant_code] = plant
+
+            tl = TankLine(
+                plant_id=plants[plant_code].id,
+                name=line_code,
+                code=line_code,
+                line_type=line_type,
+                sort_order=len([t for t in tank_lines.values() if t.plant_id == plants[plant_code].id]) + 1,
+            )
+            db.add(tl)
+            db.flush()
+            tank_lines[line_code] = tl
+
+        print(f"  - Added {len(plants)} plants, {len(tank_lines)} tank/lines")
 
         # ── Solutions ─────────────────────────────────────────────────────────
-        solutions = [
-            Solution(
-                defect_type_id=dt_scratch.id,
-                station_id=st_polishing.id,
-                name="Fine Abrasive Polish",
-                description="Use 2000-grit abrasive to remove light scratches",
-                sort_order=1,
-            ),
-            Solution(
-                defect_type_id=dt_scratch.id,
-                station_id=st_coating.id,
-                name="Protective Coating",
-                description="Apply anti-scratch coating layer",
-                sort_order=2,
-            ),
-            Solution(
-                defect_type_id=dt_pit.id,
-                station_id=st_polishing.id,
-                name="Electropolishing",
-                description="Electrochemical polishing to remove micro-pits",
-                sort_order=1,
-            ),
-            Solution(
-                defect_type_id=dt_crack.id,
-                station_id=st_casting.id,
-                name="Slow Cool Cycle",
-                description="Reduce thermal gradient by extending cool cycle",
-                sort_order=1,
-            ),
-            Solution(
-                defect_type_id=dt_crack.id,
-                station_id=st_furnace.id,
-                name="Alloy Adjustment",
-                description="Adjust Si/Mg ratio to reduce hot-crack susceptibility",
-                sort_order=2,
-            ),
-            Solution(
-                defect_type_id=dt_porosity.id,
-                station_id=st_furnace.id,
-                name="Degassing Treatment",
-                description="Rotary degassing to reduce hydrogen content below 0.1 cc/100g",
-                sort_order=1,
-            ),
-            Solution(
-                defect_type_id=dt_porosity.id,
-                station_id=st_casting.id,
-                name="Pressure Casting",
-                description="Increase injection pressure to 80 MPa to collapse voids",
-                sort_order=2,
-            ),
-            Solution(
-                defect_type_id=dt_porosity.id,
-                station_id=st_casting.id,
-                name="Vacuum Assist",
-                description="Apply vacuum during filling to remove trapped gas",
-                sort_order=3,
-            ),
-        ]
-        db.add_all(solutions)
-        db.flush()
+        df_solution = pd.read_excel(xlsx, sheet_name="Dt_Solution")
+        solutions = {}
 
-        sol_polish = solutions[0]
-        sol_coat = solutions[1]
-        sol_electro = solutions[2]
-        sol_slow_cool = solutions[3]
-        sol_alloy = solutions[4]
-        sol_degas = solutions[5]
-        sol_pressure = solutions[6]
-        sol_vacuum = solutions[7]
+        default_defect_type = list(defect_types.values())[0] if defect_types else None
 
-        # ── Solution map entries ───────────────────────────────────────────────
-        mp_id = status_by_code["MP"].id
-        dev_id = status_by_code["DEV"].id
-        plan_id = status_by_code["PLAN"].id
-        na_id = status_by_code["NA"].id
-        hold_id = status_by_code["HOLD"].id
+        for idx, row in df_solution.iterrows():
+            proc_cat = row["Process category"]
+            sta_name = row["Station"]
+            sol_name = row["D^t Solution"]
+            qual_attr = row.get("Quality Attribute", None)
+            desc = row.get("Description", None)
 
-        solution_maps = [
-            # sol_polish across lines
-            SolutionMap(solution_id=sol_polish.id, tank_line_id=tl_a1.id, status_id=mp_id),
-            SolutionMap(solution_id=sol_polish.id, tank_line_id=tl_a2.id, status_id=dev_id),
-            SolutionMap(solution_id=sol_polish.id, tank_line_id=tl_b1.id, status_id=plan_id),
-            # sol_coat
-            SolutionMap(solution_id=sol_coat.id, tank_line_id=tl_a1.id, status_id=mp_id),
-            SolutionMap(solution_id=sol_coat.id, tank_line_id=tl_b2.id, status_id=hold_id),
-            # sol_electro
-            SolutionMap(solution_id=sol_electro.id, tank_line_id=tl_a3.id, status_id=dev_id),
-            SolutionMap(solution_id=sol_electro.id, tank_line_id=tl_b1.id, status_id=plan_id),
-            # sol_slow_cool
-            SolutionMap(solution_id=sol_slow_cool.id, tank_line_id=tl_a1.id, status_id=mp_id),
-            SolutionMap(solution_id=sol_slow_cool.id, tank_line_id=tl_a2.id, status_id=mp_id),
-            SolutionMap(solution_id=sol_slow_cool.id, tank_line_id=tl_b1.id, status_id=dev_id),
-            # sol_alloy
-            SolutionMap(solution_id=sol_alloy.id, tank_line_id=tl_b2.id, status_id=plan_id),
-            SolutionMap(solution_id=sol_alloy.id, tank_line_id=tl_b3.id, status_id=na_id),
-            # sol_degas
-            SolutionMap(solution_id=sol_degas.id, tank_line_id=tl_a1.id, status_id=mp_id),
-            SolutionMap(solution_id=sol_degas.id, tank_line_id=tl_a2.id, status_id=mp_id),
-            SolutionMap(solution_id=sol_degas.id, tank_line_id=tl_a3.id, status_id=dev_id),
-            SolutionMap(solution_id=sol_degas.id, tank_line_id=tl_b1.id, status_id=mp_id),
-            # sol_pressure
-            SolutionMap(solution_id=sol_pressure.id, tank_line_id=tl_b2.id, status_id=mp_id),
-            SolutionMap(solution_id=sol_pressure.id, tank_line_id=tl_b3.id, status_id=dev_id),
-            # sol_vacuum
-            SolutionMap(solution_id=sol_vacuum.id, tank_line_id=tl_a3.id, status_id=plan_id),
-            SolutionMap(solution_id=sol_vacuum.id, tank_line_id=tl_b3.id, status_id=hold_id),
-            SolutionMap(solution_id=sol_vacuum.id, tank_line_id=tl_a2.id, status_id=na_id),
-        ]
-        db.add_all(solution_maps)
+            if pd.isna(sol_name):
+                continue
+
+            sta_key = f"{proc_cat}|{sta_name}"
+            station = stations.get(sta_key)
+            if not station:
+                continue
+
+            defect_type = None
+            if not pd.isna(qual_attr):
+                for dt_name, dt in defect_types.items():
+                    if dt_name.lower() in str(qual_attr).lower():
+                        defect_type = dt
+                        break
+            if not defect_type:
+                defect_type = default_defect_type
+
+            sol = Solution(
+                defect_type_id=defect_type.id if defect_type else 1,
+                station_id=station.id,
+                name=sol_name,
+                quality_attribute=str(qual_attr) if not pd.isna(qual_attr) else None,
+                description=str(desc) if not pd.isna(desc) else None,
+                sort_order=idx + 1,
+            )
+            db.add(sol)
+            db.flush()
+            solutions[f"{proc_cat}|{sta_name}|{sol_name}"] = sol
+
+        print(f"  - Added {len(solutions)} solutions")
+
+        # ── Solution map entries (Melting) ────────────────────────────────────
+        df_melting = pd.read_excel(xlsx, sheet_name="Melting")
+        map_count = 0
+
+        for idx, row in df_melting.iterrows():
+            proc_cat = row["Process category"]
+            sta_name = row["Station"]
+            sol_name = row["D^t Solution"]
+
+            sol_key = f"{proc_cat}|{sta_name}|{sol_name}"
+            solution = solutions.get(sol_key)
+            if not solution:
+                continue
+
+            for col in df_melting.columns[4:]:
+                status_val = row[col]
+                if pd.isna(status_val):
+                    continue
+
+                tank_line = tank_lines.get(col)
+                if not tank_line:
+                    continue
+
+                status = status_map.get(status_val)
+                if not status:
+                    continue
+
+                sm = SolutionMap(
+                    solution_id=solution.id,
+                    tank_line_id=tank_line.id,
+                    status_id=status.id,
+                    version=1,
+                )
+                db.add(sm)
+                map_count += 1
+
+        print(f"  - Added {map_count} solution map entries (Melting)")
+
+        # ── Solution map entries (Finishing) ──────────────────────────────────
+        df_finishing = pd.read_excel(xlsx, sheet_name="Finishing")
+        finish_count = 0
+
+        for idx, row in df_finishing.iterrows():
+            proc_cat = row["Process category"]
+            sta_name = row["Station"]
+            sol_name = row["D^t Solution"]
+
+            sol_key = f"{proc_cat}|{sta_name}|{sol_name}"
+            solution = solutions.get(sol_key)
+            if not solution:
+                continue
+
+            for col in df_finishing.columns[4:]:
+                status_val = row[col]
+                if pd.isna(status_val):
+                    continue
+
+                tank_line = tank_lines.get(col)
+                if not tank_line:
+                    continue
+
+                status = status_map.get(status_val)
+                if not status:
+                    continue
+
+                existing = db.query(SolutionMap).filter(
+                    SolutionMap.solution_id == solution.id,
+                    SolutionMap.tank_line_id == tank_line.id,
+                ).first()
+                if existing:
+                    continue
+
+                sm = SolutionMap(
+                    solution_id=solution.id,
+                    tank_line_id=tank_line.id,
+                    status_id=status.id,
+                    version=1,
+                )
+                db.add(sm)
+                finish_count += 1
+
+        print(f"  - Added {finish_count} solution map entries (Finishing)")
+
         db.commit()
-        print("Database seeded successfully!")
+        print("\nDatabase seeded successfully!")
+        print(f"  Total: {len(statuses)} statuses, {len(plants)} plants, {len(tank_lines)} tank/lines,")
+        print(f"         {len(categories)} defect categories, {len(defect_types)} defect types,")
+        print(f"         {len(processes)} processes, {len(stations)} stations,")
+        print(f"         {len(solutions)} solutions, {map_count + finish_count} solution maps")
 
-    except Exception:
+    except Exception as e:
         db.rollback()
+        print(f"Error: {e}")
         raise
     finally:
         db.close()

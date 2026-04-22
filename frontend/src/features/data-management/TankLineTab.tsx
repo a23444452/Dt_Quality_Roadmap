@@ -7,22 +7,32 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface TankLine {
   id: number
   name: string
-  key: string
-  plant: string
+  code: string
+  line_type: string
   plant_id: number
+  sort_order: number
+  is_active: boolean
 }
 
 interface TankLineForm {
   name: string
-  key: string
+  code: string
+  line_type: string
   plant_id: number | ''
 }
 
-const EMPTY_FORM: TankLineForm = { name: '', key: '', plant_id: '' }
+const EMPTY_FORM: TankLineForm = { name: '', code: '', line_type: 'Line', plant_id: '' }
+
+interface Plant {
+  id: number
+  name: string
+  code: string
+}
 
 export function TankLineTab() {
   const qc = useQueryClient()
@@ -31,10 +41,20 @@ export function TankLineTab() {
   const [editing, setEditing] = useState<TankLine | null>(null)
   const [form, setForm] = useState<TankLineForm>(EMPTY_FORM)
 
+  const { data: plants } = useQuery({
+    queryKey: ['plants'],
+    queryFn: async () => {
+      const resp = await apiClient.get<ApiResponse<Plant[]>>('/plants')
+      return resp.data.data ?? []
+    },
+  })
+
+  const plantMap = new Map(plants?.map(p => [p.id, p]) ?? [])
+
   const { data, isLoading } = useQuery({
     queryKey: ['tank-lines', search],
     queryFn: async () => {
-      const resp = await apiClient.get<ApiResponse<TankLine[]>>('/reference/tank-lines', {
+      const resp = await apiClient.get<ApiResponse<TankLine[]>>('/tank-lines', {
         params: { limit: 100 },
       })
       return resp.data.data ?? []
@@ -42,25 +62,25 @@ export function TankLineTab() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (body: TankLineForm) => apiClient.post('/reference/tank-lines', body),
+    mutationFn: (body: TankLineForm) => apiClient.post('/tank-lines', body),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tank-lines'] }); closeDialog() },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: number; body: Partial<TankLineForm> }) =>
-      apiClient.put(`/reference/tank-lines/${id}`, body),
+      apiClient.put(`/tank-lines/${id}`, body),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tank-lines'] }); closeDialog() },
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiClient.delete(`/reference/tank-lines/${id}`),
+    mutationFn: (id: number) => apiClient.delete(`/tank-lines/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tank-lines'] }),
   })
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setOpen(true) }
   const openEdit = (t: TankLine) => {
     setEditing(t)
-    setForm({ name: t.name, key: t.key, plant_id: t.plant_id })
+    setForm({ name: t.name, code: t.code, line_type: t.line_type, plant_id: t.plant_id })
     setOpen(true)
   }
   const closeDialog = () => { setOpen(false); setEditing(null); setForm(EMPTY_FORM) }
@@ -69,7 +89,7 @@ export function TankLineTab() {
     (t) =>
       !search ||
       t.name.toLowerCase().includes(search.toLowerCase()) ||
-      t.plant.toLowerCase().includes(search.toLowerCase())
+      t.code.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -92,7 +112,8 @@ export function TankLineTab() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Key</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Plant</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
@@ -100,7 +121,7 @@ export function TankLineTab() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                     No tank lines found.
                   </TableCell>
                 </TableRow>
@@ -108,8 +129,13 @@ export function TankLineTab() {
                 filtered.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">{t.name}</TableCell>
-                    <TableCell className="font-mono text-sm">{t.key}</TableCell>
-                    <TableCell>{t.plant}</TableCell>
+                    <TableCell className="font-mono text-sm">{t.code}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-0.5 text-xs rounded ${t.line_type === 'Tank' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                        {t.line_type}
+                      </span>
+                    </TableCell>
+                    <TableCell>{plantMap.get(t.plant_id)?.name ?? `Plant #${t.plant_id}`}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => openEdit(t)}>Edit</Button>
@@ -142,16 +168,38 @@ export function TankLineTab() {
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <Label>Key</Label>
-              <Input value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} placeholder="e.g. LINE_A1" />
+              <Label>Code</Label>
+              <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="e.g. T1, L1" />
             </div>
             <div className="space-y-1">
-              <Label>Plant ID</Label>
-              <Input
-                type="number"
-                value={form.plant_id}
-                onChange={(e) => setForm({ ...form, plant_id: e.target.value ? Number(e.target.value) : '' })}
-              />
+              <Label>Type</Label>
+              <Select value={form.line_type} onValueChange={(v) => setForm({ ...form, line_type: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Tank">Tank</SelectItem>
+                  <SelectItem value="Line">Line</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Plant</Label>
+              <Select
+                value={form.plant_id ? String(form.plant_id) : ''}
+                onValueChange={(v) => setForm({ ...form, plant_id: v ? Number(v) : '' })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select plant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plants?.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="flex justify-end gap-2">

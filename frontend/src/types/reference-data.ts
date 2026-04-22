@@ -6,7 +6,8 @@ export interface Status {
 }
 
 export interface FilterOptions {
-  processes: Array<{ id: number; name: string }>
+  process_categories: Array<{ name: string }>
+  processes: Array<{ id: number; name: string; category: string }>
   stations: Array<{ id: number; name: string; process_id: number }>
   defect_categories: Array<{ id: number; name: string }>
   plants: Array<{ id: number; name: string }>

@@ -133,21 +133,26 @@ def seed() -> None:
             if pd.isna(proc_cat) or pd.isna(sta_name):
                 continue
 
-            if proc_cat not in processes:
+            # Use Process name as key (e.g., "Melting", "Forming", "BOD", "CBW")
+            if pd.isna(proc_name):
+                proc_name = proc_cat  # Fallback to category if process is empty
+
+            if proc_name not in processes:
                 proc = Process(
-                    name=proc_cat,
+                    category=proc_cat,  # Process category (Melting, Finishing, System)
+                    name=proc_name,     # Process (Melting, Forming, BOD, CBW, INSP, DP, System)
                     sort_order=len(processes) + 1,
                 )
                 db.add(proc)
                 db.flush()
-                processes[proc_cat] = proc
+                processes[proc_name] = proc
 
-            sta_key = f"{proc_cat}|{sta_name}"
+            sta_key = f"{proc_name}|{sta_name}"
             if sta_key not in stations:
                 sta = Station(
-                    process_id=processes[proc_cat].id,
+                    process_id=processes[proc_name].id,
                     name=sta_name,
-                    sort_order=len([s for s in stations.values() if s.process_id == processes[proc_cat].id]) + 1,
+                    sort_order=len([s for s in stations.values() if s.process_id == processes[proc_name].id]) + 1,
                 )
                 db.add(sta)
                 db.flush()
@@ -199,6 +204,7 @@ def seed() -> None:
 
         for idx, row in df_solution.iterrows():
             proc_cat = row["Process category"]
+            proc_name = row["Process"]
             sta_name = row["Station"]
             sol_name = row["D^t Solution"]
             qual_attr = row.get("Quality Attribute", None)
@@ -207,7 +213,10 @@ def seed() -> None:
             if pd.isna(sol_name):
                 continue
 
-            sta_key = f"{proc_cat}|{sta_name}"
+            # Use Process name for station lookup (matches how we stored it)
+            if pd.isna(proc_name):
+                proc_name = proc_cat
+            sta_key = f"{proc_name}|{sta_name}"
             station = stations.get(sta_key)
             if not station:
                 continue
@@ -231,7 +240,7 @@ def seed() -> None:
             )
             db.add(sol)
             db.flush()
-            solutions[f"{proc_cat}|{sta_name}|{sol_name}"] = sol
+            solutions[f"{proc_name}|{sta_name}|{sol_name}"] = sol
 
         print(f"  - Added {len(solutions)} solutions")
 
@@ -241,10 +250,13 @@ def seed() -> None:
 
         for idx, row in df_melting.iterrows():
             proc_cat = row["Process category"]
+            proc_name = row["Process"]
             sta_name = row["Station"]
             sol_name = row["D^t Solution"]
 
-            sol_key = f"{proc_cat}|{sta_name}|{sol_name}"
+            if pd.isna(proc_name):
+                proc_name = proc_cat
+            sol_key = f"{proc_name}|{sta_name}|{sol_name}"
             solution = solutions.get(sol_key)
             if not solution:
                 continue
@@ -279,10 +291,13 @@ def seed() -> None:
 
         for idx, row in df_finishing.iterrows():
             proc_cat = row["Process category"]
+            proc_name = row["Process"]
             sta_name = row["Station"]
             sol_name = row["D^t Solution"]
 
-            sol_key = f"{proc_cat}|{sta_name}|{sol_name}"
+            if pd.isna(proc_name):
+                proc_name = proc_cat
+            sol_key = f"{proc_name}|{sta_name}|{sol_name}"
             solution = solutions.get(sol_key)
             if not solution:
                 continue

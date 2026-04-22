@@ -9,7 +9,8 @@ class Process(TimestampMixin, Base):
     __tablename__ = "process"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False, default="")  # Process category (Melting, Finishing, System)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)  # Process (Melting, Forming, BOD, CBW, etc.)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

@@ -5,6 +5,7 @@ import { FilterBar } from './FilterBar'
 import { PivotTable } from './PivotTable'
 
 interface Filters {
+  process_category?: string
   process_id?: number
   station_id?: number
   defect_category_id?: number

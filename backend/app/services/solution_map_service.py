@@ -100,8 +100,14 @@ def get_pivot_data(
     ]
 
     # Build filter options for dropdowns
+    all_processes = db.query(Process).filter(Process.is_active == True).order_by(Process.sort_order).all()  # noqa: E712
+
+    # Get unique process categories
+    process_categories = list(dict.fromkeys([p.category for p in all_processes if p.category]))
+
     filters = {
-        "processes": [{"id": p.id, "name": p.name} for p in db.query(Process).filter(Process.is_active == True).order_by(Process.sort_order).all()],  # noqa: E712
+        "process_categories": [{"name": cat} for cat in process_categories],
+        "processes": [{"id": p.id, "name": p.name, "category": p.category} for p in all_processes],
         "stations": [{"id": s.id, "name": s.name, "process_id": s.process_id} for s in db.query(Station).filter(Station.is_active == True).order_by(Station.sort_order).all()],  # noqa: E712
         "defect_categories": [{"id": c.id, "name": c.name} for c in db.query(DefectCategory).filter(DefectCategory.is_active == True).order_by(DefectCategory.sort_order).all()],  # noqa: E712
         "plants": [{"id": p.id, "name": p.name} for p in db.query(Plant).filter(Plant.is_active == True).order_by(Plant.sort_order).all()],  # noqa: E712

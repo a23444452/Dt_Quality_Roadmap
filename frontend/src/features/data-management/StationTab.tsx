@@ -7,20 +7,31 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface Station {
   id: number
   name: string
-  process: string
   process_id: number
+  description: string | null
+  sort_order: number
+  is_active: boolean
+}
+
+interface Process {
+  id: number
+  category: string
+  name: string
 }
 
 interface StationForm {
   name: string
   process_id: number | ''
+  description: string
+  sort_order: number
 }
 
-const EMPTY_FORM: StationForm = { name: '', process_id: '' }
+const EMPTY_FORM: StationForm = { name: '', process_id: '', description: '', sort_order: 0 }
 
 export function StationTab() {
   const qc = useQueryClient()
@@ -29,10 +40,20 @@ export function StationTab() {
   const [editing, setEditing] = useState<Station | null>(null)
   const [form, setForm] = useState<StationForm>(EMPTY_FORM)
 
+  const { data: processes } = useQuery({
+    queryKey: ['processes'],
+    queryFn: async () => {
+      const resp = await apiClient.get<ApiResponse<Process[]>>('/processes')
+      return resp.data.data ?? []
+    },
+  })
+
+  const processMap = new Map(processes?.map(p => [p.id, p]) ?? [])
+
   const { data, isLoading } = useQuery({
     queryKey: ['stations', search],
     queryFn: async () => {
-      const resp = await apiClient.get<ApiResponse<Station[]>>('/reference/stations', {
+      const resp = await apiClient.get<ApiResponse<Station[]>>('/stations', {
         params: { limit: 100 },
       })
       return resp.data.data ?? []
@@ -58,16 +79,18 @@ export function StationTab() {
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setOpen(true) }
   const openEdit = (s: Station) => {
     setEditing(s)
-    setForm({ name: s.name, process_id: s.process_id })
+    setForm({ name: s.name, process_id: s.process_id, description: s.description ?? '', sort_order: s.sort_order })
     setOpen(true)
   }
   const closeDialog = () => { setOpen(false); setEditing(null); setForm(EMPTY_FORM) }
 
   const filtered = (data ?? []).filter(
-    (s) =>
-      !search ||
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.process.toLowerCase().includes(search.toLowerCase())
+    (s) => {
+      if (!search) return true
+      const proc = processMap.get(s.process_id)
+      return s.name.toLowerCase().includes(search.toLowerCase()) ||
+             (proc?.name.toLowerCase().includes(search.toLowerCase()) ?? false)
+    }
   )
 
   return (
@@ -91,36 +114,59 @@ export function StationTab() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Process</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Sort Order</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     No stations found.
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.name}</TableCell>
-                    <TableCell>{s.process}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>Edit</Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => deleteMutation.mutate(s.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filtered.map((s) => {
+                  const proc = processMap.get(s.process_id)
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">{s.name}</TableCell>
+                      <TableCell>{proc?.name ?? `Process #${s.process_id}`}</TableCell>
+                      <TableCell>
+                        {proc && (
+                          <span className={`px-2 py-0.5 text-xs rounded ${
+                            proc.category === 'Melting' ? 'bg-green-100 text-green-700' :
+                            proc.category === 'Finishing' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {proc.category}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{s.sort_order}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-0.5 text-xs rounded ${s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                          {s.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>Edit</Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => deleteMutation.mutate(s.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
@@ -138,11 +184,33 @@ export function StationTab() {
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <Label>Process ID</Label>
+              <Label>Process</Label>
+              <Select
+                value={form.process_id ? String(form.process_id) : ''}
+                onValueChange={(v) => setForm({ ...form, process_id: v ? Number(v) : '' })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select process" />
+                </SelectTrigger>
+                <SelectContent>
+                  {processes?.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name} ({p.category})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Description</Label>
+              <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Sort Order</Label>
               <Input
                 type="number"
-                value={form.process_id}
-                onChange={(e) => setForm({ ...form, process_id: e.target.value ? Number(e.target.value) : '' })}
+                value={form.sort_order}
+                onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
               />
             </div>
           </div>

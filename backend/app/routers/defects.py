@@ -84,6 +84,21 @@ def update_defect_category(
     return ok(DefectCategoryResponse.model_validate(item).model_dump())
 
 
+@category_router.delete("/{item_id}")
+def delete_defect_category(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    item = db.query(DefectCategory).filter(DefectCategory.id == item_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    db.delete(item)
+    db.commit()
+    return ok({"deleted": True})
+
+
 # --- Defect Types ---
 
 @type_router.get("")
@@ -156,3 +171,18 @@ def update_defect_type(
     db.commit()
     db.refresh(item)
     return ok(DefectTypeResponse.model_validate(item).model_dump())
+
+
+@type_router.delete("/{item_id}")
+def delete_defect_type(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    item = db.query(DefectType).filter(DefectType.id == item_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    db.delete(item)
+    db.commit()
+    return ok({"deleted": True})

@@ -84,6 +84,21 @@ def update_process(
     return ok(ProcessResponse.model_validate(item).model_dump())
 
 
+@process_router.delete("/{item_id}")
+def delete_process(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    item = db.query(Process).filter(Process.id == item_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    db.delete(item)
+    db.commit()
+    return ok({"deleted": True})
+
+
 # --- Stations ---
 
 @station_router.get("")
@@ -156,3 +171,18 @@ def update_station(
     db.commit()
     db.refresh(item)
     return ok(StationResponse.model_validate(item).model_dump())
+
+
+@station_router.delete("/{item_id}")
+def delete_station(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    item = db.query(Station).filter(Station.id == item_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    db.delete(item)
+    db.commit()
+    return ok({"deleted": True})

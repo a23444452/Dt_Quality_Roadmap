@@ -7,23 +7,52 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface Solution {
   id: number
   name: string
-  defect_type: string
-  defect_category: string
-  station: string
-  process: string
+  defect_type_id: number
+  station_id: number
+  quality_attribute: string | null
+  description: string | null
+  sort_order: number
+  is_active: boolean
+}
+
+interface DefectType {
+  id: number
+  category_id: number
+  name: string
+}
+
+interface DefectCategory {
+  id: number
+  name: string
+}
+
+interface Station {
+  id: number
+  process_id: number
+  name: string
+}
+
+interface Process {
+  id: number
+  category: string
+  name: string
 }
 
 interface SolutionForm {
   name: string
   defect_type_id: number | ''
   station_id: number | ''
+  quality_attribute: string
+  description: string
+  sort_order: number
 }
 
-const EMPTY_FORM: SolutionForm = { name: '', defect_type_id: '', station_id: '' }
+const EMPTY_FORM: SolutionForm = { name: '', defect_type_id: '', station_id: '', quality_attribute: '', description: '', sort_order: 0 }
 
 export function SolutionTab() {
   const qc = useQueryClient()
@@ -31,6 +60,43 @@ export function SolutionTab() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Solution | null>(null)
   const [form, setForm] = useState<SolutionForm>(EMPTY_FORM)
+
+  const { data: defectCategories } = useQuery({
+    queryKey: ['defect-categories'],
+    queryFn: async () => {
+      const resp = await apiClient.get<ApiResponse<DefectCategory[]>>('/defect-categories')
+      return resp.data.data ?? []
+    },
+  })
+
+  const { data: defectTypes } = useQuery({
+    queryKey: ['defect-types'],
+    queryFn: async () => {
+      const resp = await apiClient.get<ApiResponse<DefectType[]>>('/defect-types')
+      return resp.data.data ?? []
+    },
+  })
+
+  const { data: processes } = useQuery({
+    queryKey: ['processes'],
+    queryFn: async () => {
+      const resp = await apiClient.get<ApiResponse<Process[]>>('/processes')
+      return resp.data.data ?? []
+    },
+  })
+
+  const { data: stations } = useQuery({
+    queryKey: ['stations'],
+    queryFn: async () => {
+      const resp = await apiClient.get<ApiResponse<Station[]>>('/stations')
+      return resp.data.data ?? []
+    },
+  })
+
+  const defectTypeMap = new Map(defectTypes?.map(dt => [dt.id, dt]) ?? [])
+  const defectCategoryMap = new Map(defectCategories?.map(c => [c.id, c]) ?? [])
+  const stationMap = new Map(stations?.map(s => [s.id, s]) ?? [])
+  const processMap = new Map(processes?.map(p => [p.id, p]) ?? [])
 
   const { data, isLoading } = useQuery({
     queryKey: ['solutions', search],
@@ -61,7 +127,14 @@ export function SolutionTab() {
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setOpen(true) }
   const openEdit = (s: Solution) => {
     setEditing(s)
-    setForm({ name: s.name, defect_type_id: '', station_id: '' })
+    setForm({
+      name: s.name,
+      defect_type_id: s.defect_type_id,
+      station_id: s.station_id,
+      quality_attribute: s.quality_attribute ?? '',
+      description: s.description ?? '',
+      sort_order: s.sort_order
+    })
     setOpen(true)
   }
   const closeDialog = () => { setOpen(false); setEditing(null); setForm(EMPTY_FORM) }
@@ -75,10 +148,14 @@ export function SolutionTab() {
   }
 
   const filtered = (data ?? []).filter(
-    (s) =>
-      !search ||
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.defect_type.toLowerCase().includes(search.toLowerCase())
+    (s) => {
+      if (!search) return true
+      const dt = defectTypeMap.get(s.defect_type_id)
+      const sta = stationMap.get(s.station_id)
+      return s.name.toLowerCase().includes(search.toLowerCase()) ||
+             (dt?.name.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+             (sta?.name.toLowerCase().includes(search.toLowerCase()) ?? false)
+    }
   )
 
   return (
@@ -105,39 +182,51 @@ export function SolutionTab() {
                 <TableHead>Category</TableHead>
                 <TableHead>Station</TableHead>
                 <TableHead>Process</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     No solutions found.
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.name}</TableCell>
-                    <TableCell>{s.defect_type}</TableCell>
-                    <TableCell>{s.defect_category}</TableCell>
-                    <TableCell>{s.station}</TableCell>
-                    <TableCell>{s.process}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>Edit</Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => deleteMutation.mutate(s.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filtered.map((s) => {
+                  const dt = defectTypeMap.get(s.defect_type_id)
+                  const cat = dt ? defectCategoryMap.get(dt.category_id) : null
+                  const sta = stationMap.get(s.station_id)
+                  const proc = sta ? processMap.get(sta.process_id) : null
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">{s.name}</TableCell>
+                      <TableCell>{dt?.name ?? `Type #${s.defect_type_id}`}</TableCell>
+                      <TableCell>{cat?.name ?? '—'}</TableCell>
+                      <TableCell>{sta?.name ?? `Station #${s.station_id}`}</TableCell>
+                      <TableCell>{proc?.name ?? '—'}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-0.5 text-xs rounded ${s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                          {s.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>Edit</Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => deleteMutation.mutate(s.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
@@ -145,7 +234,7 @@ export function SolutionTab() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Solution' : 'Add Solution'}</DialogTitle>
           </DialogHeader>
@@ -156,6 +245,71 @@ export function SolutionTab() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Solution name"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Defect Type</Label>
+              <Select
+                value={form.defect_type_id ? String(form.defect_type_id) : ''}
+                onValueChange={(v) => setForm({ ...form, defect_type_id: v ? Number(v) : '' })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select defect type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {defectTypes?.map((dt) => {
+                    const cat = defectCategoryMap.get(dt.category_id)
+                    return (
+                      <SelectItem key={dt.id} value={String(dt.id)}>
+                        {dt.name} ({cat?.name ?? 'Unknown'})
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Station</Label>
+              <Select
+                value={form.station_id ? String(form.station_id) : ''}
+                onValueChange={(v) => setForm({ ...form, station_id: v ? Number(v) : '' })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select station" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stations?.map((s) => {
+                    const proc = processMap.get(s.process_id)
+                    return (
+                      <SelectItem key={s.id} value={String(s.id)}>
+                        {s.name} ({proc?.name ?? 'Unknown'})
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Quality Attribute</Label>
+              <Input
+                value={form.quality_attribute}
+                onChange={(e) => setForm({ ...form, quality_attribute: e.target.value })}
+                placeholder="e.g. Dimensional, Visual"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Description</Label>
+              <Input
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Sort Order</Label>
+              <Input
+                type="number"
+                value={form.sort_order}
+                onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
               />
             </div>
           </div>

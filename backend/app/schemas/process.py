@@ -2,12 +2,14 @@ from pydantic import BaseModel
 
 
 class ProcessCreate(BaseModel):
+    category: str = ""
     name: str
     description: str | None = None
     sort_order: int = 0
 
 
 class ProcessUpdate(BaseModel):
+    category: str | None = None
     name: str | None = None
     description: str | None = None
     sort_order: int | None = None
@@ -16,6 +18,7 @@ class ProcessUpdate(BaseModel):
 
 class ProcessResponse(BaseModel):
     id: int
+    category: str
     name: str
     description: str | None
     sort_order: int

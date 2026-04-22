@@ -84,6 +84,21 @@ def update_plant(
     return ok(PlantResponse.model_validate(item).model_dump())
 
 
+@plant_router.delete("/{item_id}")
+def delete_plant(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    item = db.query(Plant).filter(Plant.id == item_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    db.delete(item)
+    db.commit()
+    return ok({"deleted": True})
+
+
 # --- Tank Lines ---
 
 @tank_line_router.get("")
@@ -156,3 +171,18 @@ def update_tank_line(
     db.commit()
     db.refresh(item)
     return ok(TankLineResponse.model_validate(item).model_dump())
+
+
+@tank_line_router.delete("/{item_id}")
+def delete_tank_line(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    item = db.query(TankLine).filter(TankLine.id == item_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    db.delete(item)
+    db.commit()
+    return ok({"deleted": True})

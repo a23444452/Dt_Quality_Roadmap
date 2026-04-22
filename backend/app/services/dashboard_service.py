@@ -9,7 +9,11 @@ from app.models.solution_map import SolutionMap
 from app.models.status_definition import StatusDefinition
 
 
-def get_summary(db: Session) -> dict:
+def get_summary(
+    db: Session,
+    defect_category_id: int | None = None,
+    process_id: int | None = None,
+) -> dict:
     statuses = {s.id: s for s in db.query(StatusDefinition).all()}
     mp_status = next((s for s in statuses.values() if s.code == "MP"), None)
     dev_status = next((s for s in statuses.values() if s.code == "DEV"), None)
@@ -58,53 +62,72 @@ def get_summary(db: Session) -> dict:
         "coverage_by_plant": coverage_by_plant,
     }
 
-    # Sankey: DefectCategory → DefectType → Station → Status flow
-    flow_rows = (
+    # Sankey: DefectCategory → DefectType → Solution → Plant flow
+    flow_query = (
         db.query(
             DefectCategory.id, DefectCategory.name,
             DefectType.id, DefectType.name,
-            Station.id, Station.name,
-            StatusDefinition.id, StatusDefinition.name,
+            Solution.id, Solution.name,
+            Plant.id, Plant.name,
             func.count(SolutionMap.id),
         )
         .join(DefectType, DefectType.category_id == DefectCategory.id)
         .join(Solution, Solution.defect_type_id == DefectType.id)
         .join(Station, Solution.station_id == Station.id)
         .join(SolutionMap, SolutionMap.solution_id == Solution.id)
-        .join(StatusDefinition, SolutionMap.status_id == StatusDefinition.id)
-        .group_by(
-            DefectCategory.id, DefectCategory.name,
-            DefectType.id, DefectType.name,
-            Station.id, Station.name,
-            StatusDefinition.id, StatusDefinition.name,
-        )
-        .all()
+        .join(TankLine, SolutionMap.tank_line_id == TankLine.id)
+        .join(Plant, TankLine.plant_id == Plant.id)
     )
+
+    # Apply filters
+    if defect_category_id:
+        flow_query = flow_query.filter(DefectCategory.id == defect_category_id)
+    if process_id:
+        flow_query = flow_query.filter(Station.process_id == process_id)
+
+    flow_rows = flow_query.group_by(
+        DefectCategory.id, DefectCategory.name,
+        DefectType.id, DefectType.name,
+        Solution.id, Solution.name,
+        Plant.id, Plant.name,
+    ).all()
 
     nodes_set: dict[str, dict] = {}
     links_map: dict[tuple[str, str], int] = {}
 
-    for cat_id, cat_name, dt_id, dt_name, sta_id, sta_name, st_id, st_name, count in flow_rows:
+    for cat_id, cat_name, dt_id, dt_name, sol_id, sol_name, plant_id, plant_name, count in flow_rows:
         cat_key = f"cat_{cat_id}"
         dt_key = f"type_{dt_id}"
-        sta_key = f"sta_{sta_id}"
-        st_key = f"status_{st_id}"
+        sol_key = f"sol_{sol_id}"
+        plant_key = f"plant_{plant_id}"
 
         nodes_set[cat_key] = {"id": cat_key, "name": cat_name, "layer": "defect_category"}
         nodes_set[dt_key] = {"id": dt_key, "name": dt_name, "layer": "defect_type"}
-        nodes_set[sta_key] = {"id": sta_key, "name": sta_name, "layer": "station"}
-        nodes_set[st_key] = {"id": st_key, "name": st_name, "layer": "status"}
+        nodes_set[sol_key] = {"id": sol_key, "name": sol_name, "layer": "solution"}
+        nodes_set[plant_key] = {"id": plant_key, "name": plant_name, "layer": "plant"}
 
-        for src, tgt in [(cat_key, dt_key), (dt_key, sta_key), (sta_key, st_key)]:
+        for src, tgt in [(cat_key, dt_key), (dt_key, sol_key), (sol_key, plant_key)]:
             pair = (src, tgt)
             links_map[pair] = links_map.get(pair, 0) + count
+
+    # Get filter options
+    filter_options = {
+        "defect_categories": [
+            {"id": c.id, "name": c.name}
+            for c in db.query(DefectCategory).filter(DefectCategory.is_active == True).order_by(DefectCategory.sort_order).all()  # noqa: E712
+        ],
+        "processes": [
+            {"id": p.id, "name": p.name}
+            for p in db.query(Process).filter(Process.is_active == True).order_by(Process.sort_order).all()  # noqa: E712
+        ],
+    }
 
     sankey = {
         "nodes": list(nodes_set.values()),
         "links": [{"source": src, "target": tgt, "value": val} for (src, tgt), val in links_map.items()],
     }
 
-    return {"kpi": kpi, "sankey": sankey}
+    return {"kpi": kpi, "sankey": sankey, "filter_options": filter_options}
 
 
 def get_process_analysis(db: Session, plant_id: int | None = None) -> dict:

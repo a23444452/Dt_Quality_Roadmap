@@ -30,7 +30,18 @@ export interface SankeyData {
   links: SankeyLink[]
 }
 
+export interface FilterOption {
+  id: number
+  name: string
+}
+
+export interface DashboardFilterOptions {
+  defect_categories: FilterOption[]
+  processes: FilterOption[]
+}
+
 export interface DashboardSummary {
   kpi: KpiData
   sankey: SankeyData
+  filter_options: DashboardFilterOptions
 }

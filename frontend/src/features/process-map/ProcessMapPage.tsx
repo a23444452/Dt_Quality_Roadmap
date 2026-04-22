@@ -5,9 +5,11 @@ import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
 
 interface ProcessNode {
+  process_category: string
   process: string
   station: string
   station_id: number
+  sort_order: number
   solution_count: number
 }
 
@@ -20,89 +22,123 @@ interface StationDetail {
   solutions: Array<{ id: number; name: string; defect_type: string; status: string }>
 }
 
-const PROCESS_COLORS: Record<string, string> = {
-  System: '#5470c6',
+// Colors for process categories
+const CATEGORY_COLORS: Record<string, string> = {
   Melting: '#91cc75',
   Finishing: '#fac858',
+  System: '#5470c6',
+}
+
+// Colors for individual processes
+const PROCESS_COLORS: Record<string, string> = {
+  Melting: '#91cc75',
+  Forming: '#73c0de',
+  BOD: '#3ba272',
+  CBW: '#fac858',
+  INSP: '#ee6666',
+  DP: '#9a60b4',
+  System: '#5470c6',
 }
 
 function buildGraphOption(nodes: ProcessNode[]) {
-  const processes = Array.from(new Set(nodes.map((n) => n.process)))
-  const processCount = processes.length || 1
+  // Nodes are already sorted by sort_order (production flow sequence)
+  const sortedNodes = [...nodes].sort((a, b) => a.sort_order - b.sort_order)
 
-  const graphNodes = nodes.map((n) => {
-    const pIdx = processes.indexOf(n.process)
-    const nodesInProcess = nodes.filter((x) => x.process === n.process)
-    const posInProcess = nodesInProcess.indexOf(n)
-    const total = nodesInProcess.length
-    const xPos = ((pIdx + 0.5) / processCount) * 800 + 100
-    const yPos = total > 1 ? (posInProcess / (total - 1)) * 300 + 100 : 250
+  // Layout: arrange in columns, snake pattern for better visualization
+  const nodesPerColumn = 10
+  const columnWidth = 180
+  const rowHeight = 60
+  const startX = 80
+  const startY = 80
+
+  const graphNodes = sortedNodes.map((n, idx) => {
+    const col = Math.floor(idx / nodesPerColumn)
+    const rowInCol = idx % nodesPerColumn
+    // Snake pattern: odd columns go bottom-to-top
+    const row = col % 2 === 0 ? rowInCol : nodesPerColumn - 1 - rowInCol
+    const xPos = startX + col * columnWidth
+    const yPos = startY + row * rowHeight
 
     return {
       id: String(n.station_id),
-      name: `${n.station}\n(${n.solution_count})`,
+      name: n.station,
       value: n.solution_count,
       x: xPos,
       y: yPos,
-      symbolSize: Math.max(40, Math.min(90, 30 + n.solution_count * 5)),
-      itemStyle: { color: PROCESS_COLORS[n.process] ?? '#ee6666' },
+      symbolSize: Math.max(35, Math.min(70, 25 + n.solution_count * 3)),
+      itemStyle: { color: PROCESS_COLORS[n.process] ?? CATEGORY_COLORS[n.process_category] ?? '#666' },
       label: {
         show: true,
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: 'bold' as const,
         color: '#fff',
         position: 'inside' as const,
+        formatter: () => n.station.length > 8 ? n.station.substring(0, 7) + '..' : n.station,
       },
+      // Store extra data for tooltip
+      processCategory: n.process_category,
+      process: n.process,
+      sortOrder: n.sort_order,
     }
   })
 
-  // Connect last station of each process to first station of next process
+  // Connect sequential stations (production flow)
   const links: Array<{ source: string; target: string; lineStyle?: object }> = []
-  for (let p = 0; p < processes.length - 1; p++) {
-    const curStations = nodes.filter((n) => n.process === processes[p])
-    const nextStations = nodes.filter((n) => n.process === processes[p + 1])
-    for (const cur of curStations) {
-      for (const next of nextStations) {
-        links.push({
-          source: String(cur.station_id),
-          target: String(next.station_id),
-          lineStyle: { width: 1.5, curveness: 0.2, color: '#bbb' },
-        })
-      }
-    }
+  for (let i = 0; i < sortedNodes.length - 1; i++) {
+    links.push({
+      source: String(sortedNodes[i].station_id),
+      target: String(sortedNodes[i + 1].station_id),
+      lineStyle: {
+        width: 2,
+        curveness: 0.2,
+        color: sortedNodes[i].process === sortedNodes[i + 1].process ? '#aaa' : '#ddd',
+      },
+    })
   }
+
+  // Get unique process categories for legend
+  const categories = Array.from(new Set(sortedNodes.map((n) => n.process_category)))
 
   return {
     tooltip: {
       trigger: 'item' as const,
-      formatter: (p: { data?: { value?: number; name?: string } }) => {
+      formatter: (p: { data?: { value?: number; name?: string; process?: string; processCategory?: string; sortOrder?: number } }) => {
         if (!p.data) return ''
-        const name = (p.data.name ?? '').split('\n')[0]
-        return `${name}: ${p.data.value ?? 0} solutions`
+        return `<b>${p.data.name}</b><br/>
+                Process: ${p.data.process}<br/>
+                Category: ${p.data.processCategory}<br/>
+                Solutions: ${p.data.value ?? 0}<br/>
+                Flow Order: #${p.data.sortOrder}`
       },
+    },
+    legend: {
+      data: Object.keys(PROCESS_COLORS),
+      top: 10,
+      left: 'center',
     },
     series: [
       {
         type: 'graph',
         layout: 'none',
         roam: true,
+        zoom: 0.9,
         edgeSymbol: ['none', 'arrow'],
-        edgeSymbolSize: [0, 12],
+        edgeSymbolSize: [0, 8],
         data: graphNodes,
         links,
         lineStyle: { color: '#aaa', width: 2 },
         emphasis: { focus: 'adjacency' },
       },
     ],
-    graphic: processes.map((p, i) => ({
+    // Category labels on the side
+    graphic: categories.map((cat, i) => ({
       type: 'text',
-      left: `${((i + 0.5) / processCount) * 80 + 10}%`,
-      top: 10,
+      right: 20,
+      top: 60 + i * 25,
       style: {
-        text: p,
-        font: 'bold 16px sans-serif',
-        fill: PROCESS_COLORS[p] ?? '#ee6666',
-        textAlign: 'center',
+        text: `● ${cat}`,
+        font: 'bold 12px sans-serif',
+        fill: CATEGORY_COLORS[cat] ?? '#666',
       },
     })),
   }

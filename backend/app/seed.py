@@ -121,9 +121,11 @@ def seed() -> None:
         print(f"  - Added {len(categories)} defect categories, {len(defect_types)} defect types")
 
         # ── Processes & stations ──────────────────────────────────────────────
+        # Excel row order represents production flow sequence (top to bottom)
         df_station = pd.read_excel(xlsx, sheet_name="Station")
         processes = {}
         stations = {}
+        global_station_order = 0  # Global order for production flow
 
         for idx, row in df_station.iterrows():
             proc_cat = row["Process category"]
@@ -141,7 +143,7 @@ def seed() -> None:
                 proc = Process(
                     category=proc_cat,  # Process category (Melting, Finishing, System)
                     name=proc_name,     # Process (Melting, Forming, BOD, CBW, INSP, DP, System)
-                    sort_order=len(processes) + 1,
+                    sort_order=idx + 1,  # Use first occurrence row as process order
                 )
                 db.add(proc)
                 db.flush()
@@ -149,10 +151,11 @@ def seed() -> None:
 
             sta_key = f"{proc_name}|{sta_name}"
             if sta_key not in stations:
+                global_station_order += 1
                 sta = Station(
                     process_id=processes[proc_name].id,
                     name=sta_name,
-                    sort_order=len([s for s in stations.values() if s.process_id == processes[proc_name].id]) + 1,
+                    sort_order=global_station_order,  # Global production flow order
                 )
                 db.add(sta)
                 db.flush()

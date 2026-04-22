@@ -131,12 +131,18 @@ def get_summary(
 
 
 def get_process_analysis(db: Session, plant_id: int | None = None) -> dict:
-    """Return process → station → solution count data for the process map."""
+    """Return process → station → solution count data for the process map.
+
+    Stations are ordered by sort_order which represents the production flow sequence
+    from the Excel file (top to bottom = production line order).
+    """
     query = (
         db.query(
+            Process.category.label("process_category"),
             Process.name.label("process"),
             Station.name.label("station"),
             Station.id.label("station_id"),
+            Station.sort_order.label("sort_order"),
             func.count(func.distinct(Solution.id)).label("solution_count"),
         )
         .join(Station, Station.process_id == Process.id)
@@ -150,16 +156,18 @@ def get_process_analysis(db: Session, plant_id: int | None = None) -> dict:
         )
 
     query = query.filter(Solution.is_active == True).group_by(  # noqa: E712
-        Process.name, Station.name, Station.id
-    ).order_by(Process.name, Station.name)
+        Process.category, Process.name, Station.name, Station.id, Station.sort_order
+    ).order_by(Station.sort_order)  # Order by production flow sequence
 
     rows = query.all()
 
     nodes = [
         {
+            "process_category": row.process_category,
             "process": row.process,
             "station": row.station,
             "station_id": row.station_id,
+            "sort_order": row.sort_order,
             "solution_count": row.solution_count,
         }
         for row in rows

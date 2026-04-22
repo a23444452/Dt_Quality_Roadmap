@@ -1,6 +1,6 @@
-# D^t Quality Roadmap
+# D^t Solution Roadmap
 
-將 Power BI 報表 `Dt_Solution_Map_for_QA` 轉換為全功能 Web 應用程式，提供 Solution Map 管理、製程視覺化、資料分析與協作編輯能力。
+將 Power BI 報表 `Dt_Solution_Map_for_QA` 轉換為全功能 Web 應用程式，提供 Solution Map 管理、製程視覺化、資料分析與協作編輯能力。支援從 Excel 檔案動態匯入完整資料，包含 Tank/Line 類型區分與 Quality Attribute 品質屬性。
 
 ---
 
@@ -16,6 +16,7 @@
 - **多維篩選** — 依製程 (Process)、站點 (Station)、缺陷類別、工廠、狀態篩選
 - **即時編輯** — Editor/Admin 點擊 cell 可直接修改狀態，支援樂觀鎖 (Optimistic Lock) 防止並發衝突
 - **批次更新** — 一次更新多筆 Solution Map 狀態
+- **Quality Attribute** — 顯示每個 Solution 的品質屬性
 
 ### Process Map 製程地圖
 - **流程視覺化** — 以 ECharts 圖表呈現 System → Melting → Finishing 製程流程
@@ -23,6 +24,7 @@
 
 ### Data Management 資料管理
 - **CRUD 操作** — Solutions、Defect Types、Stations、Tank Lines 的新增/編輯/刪除
+- **Tank/Line 類型** — 區分 Tank（熔融槽）與 Line（產線）兩種類型
 - **Excel 匯入** — 支援矩陣格式與清單格式，提供預覽確認流程 (Upload → Preview → Confirm)
 - **Excel 匯出** — 依篩選條件匯出 .xlsx 檔案
 - **範本下載** — 提供標準匯入範本
@@ -498,7 +500,7 @@ npm install
 
 ```
 Step 1: Status Definition (狀態定義)
-        └─ 系統已預設 5 個：MP, DEV, PLAN, NA, HOLD
+        └─ 系統已預設 7 個：MP, Developing, Initiation, Planned, Resource constrain, No intention, NA
 
 Step 2: Process (製程) → Station (站點)
         └─ 例：Finishing → Coating, Polishing
@@ -543,13 +545,15 @@ Step 6: Solution Map (導入狀態)
 
 | 代碼 | 名稱 | 色碼 | 說明 |
 |------|------|------|------|
-| MP | Mass Production | 綠色 | 已量產 |
-| DEV | Developing | 黃色 | 開發中 |
-| PLAN | Planned | 藍色 | 已規劃 |
-| NA | Not Applicable | 灰色 | 不適用 |
-| HOLD | On Hold | 紅色 | 暫停 |
+| MP | Mass Production | 綠色 (#28A745) | 已量產 |
+| DEVELOPING | Developing | 黃色 (#FFC107) | 開發中 |
+| INITIATION | Initiation | 青色 (#17A2B8) | 啟動中 |
+| PLANNED | Planned | 紫色 (#6F42C1) | 已規劃 |
+| RESOURCE_CONSTRAIN | Resource constrain | 橘色 (#FD7E14) | 資源受限 |
+| NO_INTENTION | No intention | 灰色 (#6C757D) | 無意導入 |
+| NA | Not Applicable | 淺灰 (#ADB5BD) | 不適用 |
 
-> 系統已預設這 5 個狀態，通常不需修改。如需新增可在此頁面操作。
+> 系統已預設這 7 個狀態，從 Excel 檔案定義載入。如需新增可在此頁面操作。
 
 #### Step 2: 建立基礎參考資料（Data Management）
 
@@ -582,8 +586,9 @@ Step 6: Solution Map (導入狀態)
 1. 切換至 **Tank Lines** Tab
 2. 點擊 **Add** 按鈕
 3. 選擇所屬 Plant（如 Plant Alpha）
-4. 輸入 Line 名稱和代碼
-5. 儲存
+4. 輸入名稱和代碼
+5. 選擇類型：**Tank**（熔融槽）或 **Line**（產線）
+6. 儲存
 
 **2-4. Solutions Tab — 新增解決方案**
 
@@ -610,10 +615,12 @@ Step 6: Solution Map (導入狀態)
 | 色塊 | 狀態 | 說明 |
 |------|------|------|
 | 🟢 綠色 | **MP** | Mass Production — 已量產 |
-| 🟡 黃色 | **DEV** | Developing — 開發中 |
-| 🔵 藍色 | **PLAN** | Planned — 已規劃 |
-| ⚪ 灰色 | **NA** | Not Applicable — 不適用 |
-| 🔴 紅色 | **HOLD** | On Hold — 暫停 |
+| 🟡 黃色 | **Developing** | 開發中 |
+| 🔵 青色 | **Initiation** | 啟動中 |
+| 🟣 紫色 | **Planned** | 已規劃 |
+| 🟠 橘色 | **Resource constrain** | 資源受限 |
+| ⚫ 灰色 | **No intention** | 無意導入 |
+| ⚪ 淺灰 | **NA** | Not Applicable — 不適用 |
 
 > **樂觀鎖機制**：如果其他人同時修改了同一筆資料，系統會提示 Conflict，請重新整理後再操作。
 
@@ -686,14 +693,16 @@ Body: { "name": "Plant Alpha", "code": "PA" }
 **建立產線：**
 ```
 POST /api/v1/tank-lines
-Body: { "plant_id": 1, "name": "Line A-1", "code": "A1" }
+Body: { "plant_id": 1, "name": "Line A-1", "code": "A1", "line_type": "Line" }
 ```
+> `line_type` 可為 `"Tank"` 或 `"Line"`（預設為 `"Line"`）
 
 **建立解決方案：**
 ```
 POST /api/v1/solutions
-Body: { "defect_type_id": 1, "station_id": 1, "name": "Anti-Bubble Spray" }
+Body: { "defect_type_id": 1, "station_id": 1, "name": "Anti-Bubble Spray", "quality_attribute": "Bubble Control" }
 ```
+> `quality_attribute` 為選填欄位，用於標示 Solution 的品質屬性
 
 **批次設定導入狀態：**
 ```
@@ -709,16 +718,16 @@ Body: {
 
 #### API 建立順序速查
 
-| 順序 | API | 依賴 |
-|------|-----|------|
-| 1 | `POST /api/v1/processes` | 無 |
-| 2 | `POST /api/v1/stations` | process_id |
-| 3 | `POST /api/v1/defect-categories` | 無 |
-| 4 | `POST /api/v1/defect-types` | category_id |
-| 5 | `POST /api/v1/plants` | 無 |
-| 6 | `POST /api/v1/tank-lines` | plant_id |
-| 7 | `POST /api/v1/solutions` | defect_type_id + station_id |
-| 8 | `POST /api/v1/solution-map/batch` | solution_id + tank_line_id + status_id |
+| 順序 | API | 依賴 | 新增欄位 |
+|------|-----|------|----------|
+| 1 | `POST /api/v1/processes` | 無 | |
+| 2 | `POST /api/v1/stations` | process_id | |
+| 3 | `POST /api/v1/defect-categories` | 無 | |
+| 4 | `POST /api/v1/defect-types` | category_id | |
+| 5 | `POST /api/v1/plants` | 無 | |
+| 6 | `POST /api/v1/tank-lines` | plant_id | `line_type` (Tank/Line) |
+| 7 | `POST /api/v1/solutions` | defect_type_id + station_id | `quality_attribute` |
+| 8 | `POST /api/v1/solution-map/batch` | solution_id + tank_line_id + status_id | |
 
 ---
 
@@ -1070,9 +1079,22 @@ npx tsc --noEmit
 
 ## 原始資料來源
 
+- `D^t Solution Quality Roadmap.xlsx` — **主要資料來源** (包含完整的 Tank/Line、Solution、Status 定義)
 - `Dt_Solution_Map_for_QA_New0126.pbit` — Power BI 範本
 - `Dt_Solution_Map_for_QA_New0126.pbix` — Power BI 報表
-- `TC Finishing D^t Solution Migration_2026.xlsx` — Excel 原始資料
+- `TC Finishing D^t Solution Migration_2026.xlsx` — Excel 原始資料 (舊版)
+
+### Excel 資料結構 (D^t Solution Quality Roadmap.xlsx)
+
+| Sheet 名稱 | 內容 | 匯入資料量 |
+|-----------|------|-----------|
+| Definition | 狀態定義 (MP, Developing, etc.) | 7 筆 |
+| Defect | 缺陷類別與類型 | 7 類別, 16 類型 |
+| Station | 製程與工站 | 3 製程, 37 工站 |
+| Tank_Line | 工廠、Tank 與 Line | 10 工廠, 102 Tank/Line |
+| Dt_Solution | 解決方案與品質屬性 | 75 筆 |
+| Melting | 熔融製程的 Solution Map | ~900 筆 |
+| Finishing | 後段製程的 Solution Map | ~1,400 筆 |
 
 ---
 

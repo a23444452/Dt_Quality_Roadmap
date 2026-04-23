@@ -9,6 +9,9 @@ import { SankeyChart } from '@/components/charts/SankeyChart'
 
 interface Filters {
   defect_category_id?: number
+  defect_type_id?: number
+  solution_id?: number
+  plant_id?: number
   process_id?: number
 }
 
@@ -20,6 +23,9 @@ export function DashboardPage() {
     queryFn: async () => {
       const params = new URLSearchParams()
       if (filters.defect_category_id) params.append('defect_category_id', String(filters.defect_category_id))
+      if (filters.defect_type_id) params.append('defect_type_id', String(filters.defect_type_id))
+      if (filters.solution_id) params.append('solution_id', String(filters.solution_id))
+      if (filters.plant_id) params.append('plant_id', String(filters.plant_id))
       if (filters.process_id) params.append('process_id', String(filters.process_id))
       const resp = await apiClient.get<ApiResponse<DashboardSummary>>(`/dashboard/summary?${params}`)
       return resp.data.data!
@@ -44,7 +50,13 @@ export function DashboardPage() {
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
     const numVal = value === '' ? undefined : Number(value)
-    setFilters((prev) => ({ ...prev, [key]: numVal }))
+    if (key === 'defect_category_id') {
+      setFilters((prev) => ({ ...prev, defect_category_id: numVal, defect_type_id: undefined, solution_id: undefined }))
+    } else if (key === 'defect_type_id') {
+      setFilters((prev) => ({ ...prev, defect_type_id: numVal, solution_id: undefined }))
+    } else {
+      setFilters((prev) => ({ ...prev, [key]: numVal }))
+    }
   }
 
   const handleReset = () => {
@@ -66,11 +78,11 @@ export function DashboardPage() {
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-500 font-medium">Defect Category</label>
             <select
-              className="border rounded px-2 py-1.5 text-sm min-w-[160px] bg-white"
+              className="border rounded px-2 py-1.5 text-sm min-w-[150px] bg-white"
               value={filters.defect_category_id ?? ''}
               onChange={(e) => handleFilterChange('defect_category_id', e.target.value)}
             >
-              <option value="">All Categories</option>
+              <option value="">All</option>
               {data.filter_options.defect_categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -80,13 +92,65 @@ export function DashboardPage() {
           </div>
 
           <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500 font-medium">Defect Type</label>
+            <select
+              className="border rounded px-2 py-1.5 text-sm min-w-[150px] bg-white"
+              value={filters.defect_type_id ?? ''}
+              onChange={(e) => handleFilterChange('defect_type_id', e.target.value)}
+            >
+              <option value="">All</option>
+              {data.filter_options.defect_types
+                .filter((t) => !filters.defect_category_id || t.category_id === filters.defect_category_id)
+                .map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500 font-medium">D^t Solution</label>
+            <select
+              className="border rounded px-2 py-1.5 text-sm min-w-[150px] bg-white"
+              value={filters.solution_id ?? ''}
+              onChange={(e) => handleFilterChange('solution_id', e.target.value)}
+            >
+              <option value="">All</option>
+              {data.filter_options.solutions
+                .filter((s) => !filters.defect_type_id || s.defect_type_id === filters.defect_type_id)
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500 font-medium">Plant</label>
+            <select
+              className="border rounded px-2 py-1.5 text-sm min-w-[120px] bg-white"
+              value={filters.plant_id ?? ''}
+              onChange={(e) => handleFilterChange('plant_id', e.target.value)}
+            >
+              <option value="">All</option>
+              {data.filter_options.plants.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-500 font-medium">Process</label>
             <select
-              className="border rounded px-2 py-1.5 text-sm min-w-[140px] bg-white"
+              className="border rounded px-2 py-1.5 text-sm min-w-[120px] bg-white"
               value={filters.process_id ?? ''}
               onChange={(e) => handleFilterChange('process_id', e.target.value)}
             >
-              <option value="">All Processes</option>
+              <option value="">All</option>
               {data.filter_options.processes.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}

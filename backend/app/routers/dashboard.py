@@ -12,11 +12,21 @@ router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 @router.get("/summary")
 def dashboard_summary(
     defect_category_id: int | None = None,
+    defect_type_id: int | None = None,
+    solution_id: int | None = None,
+    plant_id: int | None = None,
     process_id: int | None = None,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    data = get_summary(db, defect_category_id=defect_category_id, process_id=process_id)
+    data = get_summary(
+        db,
+        defect_category_id=defect_category_id,
+        defect_type_id=defect_type_id,
+        solution_id=solution_id,
+        plant_id=plant_id,
+        process_id=process_id,
+    )
     return ok(data)
 
 

@@ -35,8 +35,19 @@ export interface FilterOption {
   name: string
 }
 
+export interface DefectTypeFilterOption extends FilterOption {
+  category_id: number
+}
+
+export interface SolutionFilterOption extends FilterOption {
+  defect_type_id: number
+}
+
 export interface DashboardFilterOptions {
   defect_categories: FilterOption[]
+  defect_types: DefectTypeFilterOption[]
+  solutions: SolutionFilterOption[]
+  plants: FilterOption[]
   processes: FilterOption[]
 }
 

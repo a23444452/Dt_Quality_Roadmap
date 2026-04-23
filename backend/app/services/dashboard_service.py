@@ -12,6 +12,9 @@ from app.models.status_definition import StatusDefinition
 def get_summary(
     db: Session,
     defect_category_id: int | None = None,
+    defect_type_id: int | None = None,
+    solution_id: int | None = None,
+    plant_id: int | None = None,
     process_id: int | None = None,
 ) -> dict:
     statuses = {s.id: s for s in db.query(StatusDefinition).all()}
@@ -82,6 +85,12 @@ def get_summary(
     # Apply filters
     if defect_category_id:
         flow_query = flow_query.filter(DefectCategory.id == defect_category_id)
+    if defect_type_id:
+        flow_query = flow_query.filter(DefectType.id == defect_type_id)
+    if solution_id:
+        flow_query = flow_query.filter(Solution.id == solution_id)
+    if plant_id:
+        flow_query = flow_query.filter(Plant.id == plant_id)
     if process_id:
         flow_query = flow_query.filter(Station.process_id == process_id)
 
@@ -115,6 +124,18 @@ def get_summary(
         "defect_categories": [
             {"id": c.id, "name": c.name}
             for c in db.query(DefectCategory).filter(DefectCategory.is_active == True).order_by(DefectCategory.sort_order).all()  # noqa: E712
+        ],
+        "defect_types": [
+            {"id": t.id, "name": t.name, "category_id": t.category_id}
+            for t in db.query(DefectType).filter(DefectType.is_active == True).order_by(DefectType.sort_order).all()  # noqa: E712
+        ],
+        "solutions": [
+            {"id": s.id, "name": s.name, "defect_type_id": s.defect_type_id}
+            for s in db.query(Solution).filter(Solution.is_active == True).order_by(Solution.sort_order).all()  # noqa: E712
+        ],
+        "plants": [
+            {"id": p.id, "name": p.name}
+            for p in db.query(Plant).filter(Plant.is_active == True).order_by(Plant.sort_order).all()  # noqa: E712
         ],
         "processes": [
             {"id": p.id, "name": p.name}

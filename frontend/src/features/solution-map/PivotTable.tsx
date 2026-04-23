@@ -39,10 +39,10 @@ export function PivotTable({ solutions, lines, statuses, canEdit }: PivotTablePr
         cell: (info) => <span className="font-medium text-xs">{info.getValue()}</span>,
         size: 130,
       }),
-      columnHelper.accessor('defect_type', {
-        header: 'Defect Type',
-        cell: (info) => <span className="text-xs">{info.getValue()}</span>,
-        size: 130,
+      columnHelper.accessor('quality_attribute', {
+        header: 'Quality Attribute',
+        cell: (info) => <span className="text-xs">{info.getValue() ?? '—'}</span>,
+        size: 150,
       }),
       columnHelper.accessor('station', {
         header: 'Station',
@@ -50,14 +50,9 @@ export function PivotTable({ solutions, lines, statuses, canEdit }: PivotTablePr
         size: 100,
       }),
       columnHelper.accessor('name', {
-        header: 'Solution',
+        header: 'D^t Solution',
         cell: (info) => <span className="text-xs">{info.getValue()}</span>,
         size: 180,
-      }),
-      columnHelper.accessor('quality_attribute', {
-        header: 'Quality Attribute',
-        cell: (info) => <span className="text-xs text-gray-600">{info.getValue() ?? '—'}</span>,
-        size: 120,
       }),
     ]
 

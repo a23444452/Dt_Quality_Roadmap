@@ -53,12 +53,12 @@ export function SankeyChart({ data }: SankeyChartProps) {
     series: [
       {
         type: 'sankey',
-        left: 40,
-        right: 40,
+        left: 120,
+        right: 120,
         top: 20,
         bottom: 20,
-        nodeWidth: 20,
-        nodeGap: 14,
+        nodeWidth: 18,
+        nodeGap: 12,
         layoutIterations: 32,
         orient: 'horizontal',
         draggable: true,

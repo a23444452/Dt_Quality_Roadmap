@@ -48,14 +48,28 @@ function buildPieOption(nodes: ProcessNode[]) {
   return {
     title: { text: 'Solution Distribution by Process', left: 'center', textStyle: { fontSize: 14, fontWeight: 'bold' } },
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { bottom: 0 },
+    legend: {
+      orient: 'vertical',
+      right: 10,
+      top: 'center',
+      itemGap: 12,
+    },
     series: [
       {
         type: 'pie',
-        radius: ['40%', '70%'],
+        radius: ['35%', '60%'],
+        center: ['40%', '55%'],
         data: Object.entries(byProcess).map(([name, value]) => ({ name, value })),
         emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' } },
-        label: { formatter: '{b}\n{c}' },
+        label: {
+          show: true,
+          formatter: '{c}',
+          position: 'inside',
+          fontSize: 12,
+          fontWeight: 'bold',
+          color: '#fff',
+        },
+        labelLine: { show: false },
       },
     ],
   }

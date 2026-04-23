@@ -21,8 +21,15 @@ def get_summary(
     mp_status = next((s for s in statuses.values() if s.code == "MP"), None)
     dev_status = next((s for s in statuses.values() if s.code == "DEVELOPING"), None)
     plan_status = next((s for s in statuses.values() if s.code == "PLANNED"), None)
+    na_status = next((s for s in statuses.values() if s.code == "NA"), None)
+    no_intention_status = next((s for s in statuses.values() if s.code == "NO_INTENTION"), None)
 
-    total = db.query(func.count(SolutionMap.id)).scalar() or 0
+    # Exclude NA and No intention from total count
+    excluded_status_ids = [s.id for s in [na_status, no_intention_status] if s is not None]
+    total_query = db.query(func.count(SolutionMap.id))
+    if excluded_status_ids:
+        total_query = total_query.filter(~SolutionMap.status_id.in_(excluded_status_ids))
+    total = total_query.scalar() or 0
 
     def count_by_status(status):
         if status is None:

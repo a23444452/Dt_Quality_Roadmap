@@ -21,11 +21,12 @@
 - **Quality Attribute** — 顯示每個 Solution 的品質屬性
 
 ### Process Map 製程地圖
-- **生產線流程** — 以 ECharts Graph 圖表呈現站點的生產線順序 (依 Excel Station sheet 由上而下順序)
-- **蛇形佈局** — 站點依生產流程排列，每欄 10 個節點，奇數欄由上而下、偶數欄由下而上形成蛇形動線
-- **色彩區分** — 依 Process 類別著色 (Melting 綠色、Forming 青色、BOD 深綠、CBW 黃色、INSP 紅色、DP 紫色、System 藍色)
-- **節點大小** — 依該站點關聯的 Solution 數量動態調整
-- **站點詳情** — 點擊站點節點查看相關 Solution 清單
+- **互動式流程圖** — 顯示完整製程流程圖片 (Melting → Forming → BOD → CBW → INSP → DP)
+- **Process 圓點熱點** — 6 個彩色圓點代表各製程區域，點擊可查看詳細資訊
+- **Hover 資訊提示** — 滑鼠移至圓點顯示該 Process 的所有站點名稱與 Solution 數量
+- **D^t Solution 表格** — 點擊圓點後在下方顯示該製程的完整 Solution 清單，包含 Station、Solution Name、Quality Attribute、Defect Category、Defect Type
+- **色彩區分** — 依 Process 著色 (Melting 紅色、Forming 紫色、BOD 橘色、CBW 藍色、INSP 綠色、DP 青色)
+- **選取狀態效果** — 選取的圓點放大並帶有發光脈動動畫
 
 ### Data Management 資料管理
 - **完整 CRUD** — 9 個 Tab 管理所有資料實體：

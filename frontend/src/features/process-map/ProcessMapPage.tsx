@@ -1,8 +1,12 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import ReactECharts from 'echarts-for-react'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { Badge } from '@/components/ui/badge'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
+import { ProcessHotspot } from './ProcessHotspot'
+import { useProcessSolutions } from './useProcessSolutions'
+import { PROCESS_ZONES, PROCESS_COLORS, type ProcessZone } from './process-hotspots'
 
 interface ProcessNode {
   process_category: string
@@ -17,137 +21,11 @@ interface ProcessAnalysisData {
   nodes: ProcessNode[]
 }
 
-interface StationDetail {
-  station: string
-  solutions: Array<{ id: number; name: string; defect_type: string; status: string }>
-}
-
-// Colors for process categories
-const CATEGORY_COLORS: Record<string, string> = {
-  Melting: '#91cc75',
-  Finishing: '#fac858',
-  System: '#5470c6',
-}
-
-// Colors for individual processes
-const PROCESS_COLORS: Record<string, string> = {
-  Melting: '#91cc75',
-  Forming: '#73c0de',
-  BOD: '#3ba272',
-  CBW: '#fac858',
-  INSP: '#ee6666',
-  DP: '#9a60b4',
-  System: '#5470c6',
-}
-
-function buildGraphOption(nodes: ProcessNode[]) {
-  // Nodes are already sorted by sort_order (production flow sequence)
-  const sortedNodes = [...nodes].sort((a, b) => a.sort_order - b.sort_order)
-
-  // Layout: arrange in columns, snake pattern for better visualization
-  const nodesPerColumn = 10
-  const columnWidth = 180
-  const rowHeight = 60
-  const startX = 80
-  const startY = 80
-
-  const graphNodes = sortedNodes.map((n, idx) => {
-    const col = Math.floor(idx / nodesPerColumn)
-    const rowInCol = idx % nodesPerColumn
-    // Snake pattern: odd columns go bottom-to-top
-    const row = col % 2 === 0 ? rowInCol : nodesPerColumn - 1 - rowInCol
-    const xPos = startX + col * columnWidth
-    const yPos = startY + row * rowHeight
-
-    return {
-      id: String(n.station_id),
-      name: n.station,
-      value: n.solution_count,
-      x: xPos,
-      y: yPos,
-      symbolSize: Math.max(35, Math.min(70, 25 + n.solution_count * 3)),
-      itemStyle: { color: PROCESS_COLORS[n.process] ?? CATEGORY_COLORS[n.process_category] ?? '#666' },
-      label: {
-        show: true,
-        fontSize: 10,
-        fontWeight: 'bold' as const,
-        color: '#fff',
-        position: 'inside' as const,
-        formatter: () => n.station.length > 8 ? n.station.substring(0, 7) + '..' : n.station,
-      },
-      // Store extra data for tooltip
-      processCategory: n.process_category,
-      process: n.process,
-      sortOrder: n.sort_order,
-    }
-  })
-
-  // Connect sequential stations (production flow)
-  const links: Array<{ source: string; target: string; lineStyle?: object }> = []
-  for (let i = 0; i < sortedNodes.length - 1; i++) {
-    links.push({
-      source: String(sortedNodes[i].station_id),
-      target: String(sortedNodes[i + 1].station_id),
-      lineStyle: {
-        width: 2,
-        curveness: 0.2,
-        color: sortedNodes[i].process === sortedNodes[i + 1].process ? '#aaa' : '#ddd',
-      },
-    })
-  }
-
-  // Get unique process categories for legend
-  const categories = Array.from(new Set(sortedNodes.map((n) => n.process_category)))
-
-  return {
-    tooltip: {
-      trigger: 'item' as const,
-      formatter: (p: { data?: { value?: number; name?: string; process?: string; processCategory?: string; sortOrder?: number } }) => {
-        if (!p.data) return ''
-        return `<b>${p.data.name}</b><br/>
-                Process: ${p.data.process}<br/>
-                Category: ${p.data.processCategory}<br/>
-                Solutions: ${p.data.value ?? 0}<br/>
-                Flow Order: #${p.data.sortOrder}`
-      },
-    },
-    legend: {
-      data: Object.keys(PROCESS_COLORS),
-      top: 10,
-      left: 'center',
-    },
-    series: [
-      {
-        type: 'graph',
-        layout: 'none',
-        roam: true,
-        zoom: 0.9,
-        edgeSymbol: ['none', 'arrow'],
-        edgeSymbolSize: [0, 8],
-        data: graphNodes,
-        links,
-        lineStyle: { color: '#aaa', width: 2 },
-        emphasis: { focus: 'adjacency' },
-      },
-    ],
-    // Category labels on the side
-    graphic: categories.map((cat, i) => ({
-      type: 'text',
-      right: 20,
-      top: 60 + i * 25,
-      style: {
-        text: `● ${cat}`,
-        font: 'bold 12px sans-serif',
-        fill: CATEGORY_COLORS[cat] ?? '#666',
-      },
-    })),
-  }
-}
-
 export function ProcessMapPage() {
-  const [selectedStation, setSelectedStation] = useState<StationDetail | null>(null)
+  const [selectedZone, setSelectedZone] = useState<ProcessZone | null>(null)
+  const [selectedProcessName, setSelectedProcessName] = useState<string | null>(null)
 
-  const { data, isLoading, isError } = useQuery({
+  const { data: processData, isLoading: processLoading, isError } = useQuery({
     queryKey: ['process-analysis'],
     queryFn: async () => {
       const resp = await apiClient.get<ApiResponse<ProcessAnalysisData>>('/dashboard/process-analysis')
@@ -155,18 +33,56 @@ export function ProcessMapPage() {
     },
   })
 
-  const handleChartClick = (params: { data?: { id?: string; name?: string } }) => {
-    if (!params.data?.id || !data) return
-    const stationId = Number(params.data.id)
-    const node = data.nodes.find((n) => n.station_id === stationId)
-    if (!node) return
-    setSelectedStation({
-      station: node.station,
-      solutions: [],
+  // 按 Process 分組站點資訊
+  const processStationMap = useMemo(() => {
+    if (!processData?.nodes) return new Map<string, Array<{ name: string; stationId: number; solutionCount: number }>>()
+
+    const map = new Map<string, Array<{ name: string; stationId: number; solutionCount: number }>>()
+
+    processData.nodes.forEach((node) => {
+      const existing = map.get(node.process) ?? []
+      existing.push({
+        name: node.station,
+        stationId: node.station_id,
+        solutionCount: node.solution_count,
+      })
+      map.set(node.process, existing)
+    })
+
+    return map
+  }, [processData])
+
+  // 取得指定 Process 的站點資訊
+  const getStationInfos = (zone: ProcessZone) => {
+    const stations = processStationMap.get(zone.process) ?? []
+    return zone.stations.map((stationName) => {
+      const found = stations.find((s) =>
+        s.name.toLowerCase() === stationName.toLowerCase() ||
+        s.name.toLowerCase().includes(stationName.toLowerCase()) ||
+        stationName.toLowerCase().includes(s.name.toLowerCase())
+      )
+      return {
+        name: stationName,
+        solutionCount: found?.solutionCount ?? 0,
+        stationId: found?.stationId,
+      }
     })
   }
 
-  if (isLoading) {
+  const { data: solutions = [], isLoading: solutionsLoading } = useProcessSolutions(selectedProcessName)
+
+  const handleZoneClick = (zone: ProcessZone) => {
+    // 如果點擊同一個 Process，則取消選取
+    if (selectedZone?.id === zone.id) {
+      setSelectedZone(null)
+      setSelectedProcessName(null)
+    } else {
+      setSelectedZone(zone)
+      setSelectedProcessName(zone.process)
+    }
+  }
+
+  if (processLoading) {
     return (
       <div className="flex items-center justify-center py-24 text-muted-foreground">
         Loading process map...
@@ -174,7 +90,7 @@ export function ProcessMapPage() {
     )
   }
 
-  if (isError || !data) {
+  if (isError) {
     return (
       <div className="flex items-center justify-center py-24 text-destructive">
         Failed to load process analysis data.
@@ -182,69 +98,139 @@ export function ProcessMapPage() {
     )
   }
 
-  const nodes = data.nodes ?? []
+  const processColor = selectedZone ? PROCESS_COLORS[selectedZone.process] ?? '#6b7280' : '#6b7280'
 
-  if (nodes.length === 0) {
-    return (
+  return (
+    <TooltipProvider delayDuration={100}>
       <div className="space-y-6 p-6">
         <div>
           <h1 className="text-2xl font-bold">Process Map</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Click a station node to view solution details
+            Process flow overview. Click on a dot to view D^t Solution details for each process.
           </p>
         </div>
-        <div className="flex items-center justify-center py-24 text-muted-foreground rounded-lg border bg-white">
-          No process data available. Add solutions and solution map entries first.
+
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4 text-sm">
+          {Object.entries(PROCESS_COLORS).map(([process, color]) => (
+            <div key={process} className="flex items-center gap-2">
+              <span
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: color }}
+              />
+              <span>{process}</span>
+            </div>
+          ))}
         </div>
-      </div>
-    )
-  }
 
-  const option = buildGraphOption(nodes)
-
-  return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Process Map</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Click a station node to view solution details
-        </p>
-      </div>
-
-      <div className="rounded-lg border bg-white p-4">
-        <ReactECharts
-          option={option}
-          style={{ height: 500 }}
-          notMerge
-          onEvents={{ click: handleChartClick }}
-        />
-      </div>
-
-      {selectedStation && (
-        <div className="rounded-lg border bg-white p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Station: {selectedStation.station}</h2>
-            <button
-              className="text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setSelectedStation(null)}
-            >
-              Close
-            </button>
+        {/* Process Map Image with Hotspots */}
+        <div className="rounded-lg border bg-white p-4 overflow-auto">
+          <div className="relative inline-block min-w-[900px]">
+            <img
+              src="/process-map.jpg"
+              alt="Process Map"
+              className="w-full h-auto"
+              draggable={false}
+            />
+            {PROCESS_ZONES.map((zone) => (
+              <ProcessHotspot
+                key={zone.id}
+                zone={zone}
+                stationInfos={getStationInfos(zone)}
+                onClick={handleZoneClick}
+                isSelected={selectedZone?.id === zone.id}
+              />
+            ))}
           </div>
-          {selectedStation.solutions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No detailed solution data available for this station.</p>
-          ) : (
-            <ul className="divide-y">
-              {selectedStation.solutions.map((s) => (
-                <li key={s.id} className="py-2 flex items-center justify-between text-sm">
-                  <span className="font-medium">{s.name}</span>
-                  <span className="text-muted-foreground">{s.defect_type} · {s.status}</span>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
-      )}
-    </div>
+
+        {/* User Hint */}
+        {!selectedZone && (
+          <div className="text-sm text-muted-foreground bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-2">
+            <span className="text-blue-500">💡</span>
+            <p>Click on a <strong>process dot</strong> above to view the D^t Solution details below</p>
+          </div>
+        )}
+
+        {/* D^t Solution Table */}
+        {selectedZone && (
+          <div className="rounded-lg border bg-white">
+            {/* Table Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-3">
+                <span
+                  className="w-4 h-4 rounded-full"
+                  style={{ backgroundColor: processColor }}
+                />
+                <h2 className="text-lg font-semibold">{selectedZone.displayName}</h2>
+                <Badge variant="secondary">
+                  {solutions.length} Solution{solutions.length !== 1 ? 's' : ''}
+                </Badge>
+              </div>
+              <button
+                className="text-sm text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted"
+                onClick={() => {
+                  setSelectedZone(null)
+                  setSelectedProcessName(null)
+                }}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {/* Stations Info */}
+            <div className="px-4 py-2 bg-muted/30 text-sm text-muted-foreground">
+              <span className="font-medium">Stations:</span> {selectedZone.stations.join(', ')}
+            </div>
+
+            {/* Table Content */}
+            <div className="overflow-auto max-h-[500px]">
+              {solutionsLoading ? (
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
+                  Loading solutions...
+                </div>
+              ) : solutions.length === 0 ? (
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
+                  No D^t Solution data available for this process
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium">Station</th>
+                      <th className="text-left px-4 py-3 font-medium">Solution Name</th>
+                      <th className="text-left px-4 py-3 font-medium">Quality Attribute</th>
+                      <th className="text-left px-4 py-3 font-medium">Defect Category</th>
+                      <th className="text-left px-4 py-3 font-medium">Defect Type</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {solutions.map((sol) => (
+                      <tr key={sol.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {sol.station}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 font-medium">{sol.name}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {sol.quality_attribute || '-'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="secondary" className="text-xs font-normal">
+                            {sol.defect_category}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{sol.defect_type}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
   )
 }

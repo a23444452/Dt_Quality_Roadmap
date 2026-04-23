@@ -40,10 +40,10 @@ def get_summary(
     dev_count = count_by_status(dev_status)
     plan_count = count_by_status(plan_status)
 
-    # Coverage by plant
+    # Coverage by plant (exclude NA and No intention from total)
     coverage_by_plant = []
     if mp_status:
-        coverage_rows = (
+        coverage_query = (
             db.query(
                 Plant.name,
                 func.count(SolutionMap.id).label("total"),
@@ -51,9 +51,10 @@ def get_summary(
             )
             .join(TankLine, TankLine.plant_id == Plant.id)
             .join(SolutionMap, SolutionMap.tank_line_id == TankLine.id)
-            .group_by(Plant.name)
-            .all()
         )
+        if excluded_status_ids:
+            coverage_query = coverage_query.filter(~SolutionMap.status_id.in_(excluded_status_ids))
+        coverage_rows = coverage_query.group_by(Plant.name).all()
         coverage_by_plant = [
             {
                 "plant": row[0],

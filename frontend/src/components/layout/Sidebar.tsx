@@ -5,7 +5,6 @@ import {
   Grid3X3,
   GitBranch,
   Database,
-  BarChart3,
   Activity,
   Users,
   Settings,
@@ -27,7 +26,6 @@ const mainNavItems: NavItem[] = [
   { label: 'Solution Map', icon: Grid3X3, to: '/solution-map' },
   { label: 'Process Map', icon: GitBranch, to: '/process-map' },
   { label: 'Data Management', icon: Database, to: '/data-management' },
-  { label: 'Defect Analysis', icon: BarChart3, to: '/analysis/defect' },
   { label: 'Process Analysis', icon: Activity, to: '/analysis/process' },
 ]
 

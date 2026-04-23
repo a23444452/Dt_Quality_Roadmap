@@ -11,7 +11,6 @@ import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { SolutionMapPage } from '@/features/solution-map/SolutionMapPage'
 import { ProcessMapPage } from '@/features/process-map/ProcessMapPage'
 import { DataManagementPage } from '@/features/data-management/DataManagementPage'
-import { DefectAnalysisPage } from '@/features/analysis/DefectAnalysisPage'
 import { ProcessAnalysisPage } from '@/features/analysis/ProcessAnalysisPage'
 import { UserManagementPage } from '@/features/admin/UserManagementPage'
 import { AdminSettingsPage } from '@/features/admin/AdminSettingsPage'
@@ -43,7 +42,6 @@ function AppRoutes() {
         <Route path="solution-map" element={<SolutionMapPage />} />
         <Route path="process-map" element={<ProcessMapPage />} />
         <Route path="data-management" element={<DataManagementPage />} />
-        <Route path="analysis/defect" element={<DefectAnalysisPage />} />
         <Route path="analysis/process" element={<ProcessAnalysisPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="admin/users" element={<UserManagementPage />} />

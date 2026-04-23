@@ -70,7 +70,15 @@ export function DashboardPage() {
       <div className="rounded-lg border bg-white p-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Solution Flow</h2>
-          <p className="text-sm text-gray-500">Defect Category → Defect Type → D^t Solution → Plant</p>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="px-3 py-1 rounded-full font-medium" style={{ backgroundColor: '#5470c6', color: '#fff' }}>Defect Category</span>
+            <span className="text-gray-400 font-bold">→</span>
+            <span className="px-3 py-1 rounded-full font-medium" style={{ backgroundColor: '#91cc75', color: '#1a5d1a' }}>Defect Type</span>
+            <span className="text-gray-400 font-bold">→</span>
+            <span className="px-3 py-1 rounded-full font-medium" style={{ backgroundColor: '#fac858', color: '#7c5c00' }}>D^t Solution</span>
+            <span className="text-gray-400 font-bold">→</span>
+            <span className="px-3 py-1 rounded-full font-medium" style={{ backgroundColor: '#ee6666', color: '#fff' }}>Plant</span>
+          </div>
         </div>
 
         {/* Filter Bar */}

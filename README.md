@@ -45,8 +45,7 @@
 - **範本下載** — 提供標準匯入範本
 
 ### Analysis 分析頁面
-- **缺陷分析** — 缺陷類型分佈、各工廠覆蓋率對比圖表
-- **製程分析** — 各製程 Solution 數量對比、完成度分析
+- **製程分析** — 各製程 Solution 數量堆疊圖、圓餅圖分佈、彙總表格
 
 ### Admin 管理後台
 - **用戶管理** — 審核新用戶註冊 (Approve/Reject)、停用帳號、重設密碼
@@ -544,7 +543,6 @@ Step 6: Solution Map (導入狀態)
 | **Dashboard** | Solution Map | KPI 統計、Sankey 圖、工廠覆蓋率 |
 | **Solution Map** | Solution + Tank Line + Solution Map | 樞紐表矩陣 |
 | **Process Map** | Solution (綁定 Station) + Solution Map | 製程流程圖 |
-| **Defect Analysis** | Defect Category/Type → Solution → Solution Map | 缺陷分佈圖表 |
 | **Process Analysis** | Process → Station → Solution → Solution Map | 製程分析圖表 |
 | **Data Management** | 各項 Reference Data | CRUD 管理表格 |
 
@@ -660,7 +658,6 @@ Step 6: Solution Map (導入狀態)
 - **Dashboard** — KPI 卡片 + Sankey 圖
 - **Solution Map** — 樞紐表
 - **Process Map** — 製程流程圖
-- **Defect Analysis** — 缺陷分佈圖表
 - **Process Analysis** — 製程分析圖表
 
 ---
@@ -1055,6 +1052,237 @@ environment:
   - GUNICORN_WORKERS=9  # 依伺服器 CPU 調整
   - GUNICORN_TIMEOUT=120
 ```
+
+---
+
+## 公司內部 Server 部署
+
+將系統部署在公司共用 PC Server，讓內部網路的使用者都能透過瀏覽器存取。
+
+### 前置需求
+
+1. **固定 IP 或 Hostname** — Server 需有固定內網 IP（如 `192.168.1.100`）或可解析的 hostname
+2. **防火牆設定** — 開放 port 80 (HTTP) 或 443 (HTTPS)
+3. **系統需求** — Windows Server 2019+ 或 Windows 10/11，建議 4+ CPU 核心、8GB+ RAM
+
+### 方案一：簡易部署（適合小型團隊 5-20 人）
+
+#### Step 1: 設定 Backend 監聽所有網路介面
+
+```powershell
+cd backend
+.venv\Scripts\Activate.ps1
+
+# 綁定到 0.0.0.0 讓外部可存取
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+#### Step 2: 設定 Frontend 監聽所有網路介面
+
+```powershell
+cd frontend
+
+# 使用 --host 參數讓外部可存取
+npm run dev -- --host 0.0.0.0
+```
+
+#### Step 3: 設定 CORS 允許內網存取
+
+編輯 `backend/.env`：
+
+```env
+CORS_ORIGINS=http://192.168.1.100:5173,http://your-server-hostname:5173
+```
+
+> 將 `192.168.1.100` 替換為實際的 Server IP
+
+#### Step 4: 設定 Windows 防火牆
+
+```powershell
+# 以系統管理員身分執行 PowerShell
+New-NetFirewallRule -DisplayName "Dt Quality Roadmap - Backend" -Direction Inbound -Port 8000 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "Dt Quality Roadmap - Frontend" -Direction Inbound -Port 5173 -Protocol TCP -Action Allow
+```
+
+#### Step 5: 使用者存取方式
+
+告知使用者在瀏覽器輸入：
+```
+http://192.168.1.100:5173
+```
+
+---
+
+### 方案二：生產級部署（適合 20+ 人，推薦）
+
+使用 Nginx 作為反向代理，統一入口 + 靜態檔案快取 + 負載平衡。
+
+#### Step 1: 安裝 Nginx for Windows
+
+1. 下載 Nginx Windows 版本：https://nginx.org/en/download.html
+2. 解壓縮到 `C:\nginx`
+
+#### Step 2: 設定 Nginx
+
+編輯 `C:\nginx\conf\nginx.conf`：
+
+```nginx
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    sendfile      on;
+    keepalive_timeout 65;
+
+    # 後端 API
+    upstream backend {
+        server 127.0.0.1:8000;
+    }
+
+    server {
+        listen 80;
+        server_name 192.168.1.100;  # 替換為實際 IP 或 hostname
+
+        # 前端靜態檔案
+        location / {
+            root   C:/path/to/Dt_Quality_Roadmap/frontend/dist;
+            index  index.html;
+            try_files $uri $uri/ /index.html;
+        }
+
+        # API 請求轉發到後端
+        location /api/ {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+```
+
+#### Step 3: 建置前端靜態檔案
+
+```powershell
+cd frontend
+npm run build
+```
+
+產生的檔案在 `frontend/dist` 目錄。
+
+#### Step 4: 啟動服務
+
+```powershell
+# 啟動 Backend（使用 Gunicorn 多 Worker）
+cd backend
+.venv\Scripts\Activate.ps1
+gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000
+
+# 啟動 Nginx
+cd C:\nginx
+start nginx
+```
+
+#### Step 5: 設定防火牆
+
+```powershell
+New-NetFirewallRule -DisplayName "Dt Quality Roadmap - HTTP" -Direction Inbound -Port 80 -Protocol TCP -Action Allow
+```
+
+#### Step 6: 使用者存取方式
+
+```
+http://192.168.1.100
+```
+
+---
+
+### 開機自動啟動
+
+#### 使用 Windows 工作排程器
+
+1. 建立啟動腳本 `C:\scripts\start-dt-roadmap.bat`：
+
+```batch
+@echo off
+cd /d C:\path\to\Dt_Quality_Roadmap\backend
+call .venv\Scripts\activate.bat
+start /B uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+cd /d C:\nginx
+start nginx
+```
+
+2. 開啟「工作排程器」(Task Scheduler)
+3. 建立基本工作 → 觸發程序選「電腦啟動時」
+4. 動作選「啟動程式」，指向 `C:\scripts\start-dt-roadmap.bat`
+5. 勾選「以最高權限執行」
+
+#### 使用 NSSM (推薦)
+
+NSSM (Non-Sucking Service Manager) 可將程式註冊為 Windows 服務：
+
+```powershell
+# 下載 NSSM: https://nssm.cc/download
+# 安裝 Backend 為服務
+nssm install DtRoadmapBackend "C:\path\to\backend\.venv\Scripts\uvicorn.exe" "app.main:app --host 0.0.0.0 --port 8000"
+nssm set DtRoadmapBackend AppDirectory "C:\path\to\Dt_Quality_Roadmap\backend"
+nssm start DtRoadmapBackend
+
+# 安裝 Nginx 為服務
+nssm install DtRoadmapNginx "C:\nginx\nginx.exe"
+nssm set DtRoadmapNginx AppDirectory "C:\nginx"
+nssm start DtRoadmapNginx
+```
+
+---
+
+### 常見問題
+
+<details>
+<summary><b>Q: 使用者反映無法連線？</b></summary>
+
+1. 確認 Server 防火牆已開放對應 port
+2. 確認服務正在執行：`netstat -ano | findstr ":8000"`
+3. 確認 CORS 設定包含使用者存取的 URL
+4. 使用者嘗試清除瀏覽器快取或使用無痕模式
+
+</details>
+
+<details>
+<summary><b>Q: API 回應緩慢？</b></summary>
+
+1. 增加 Gunicorn Worker 數量
+2. 檢查 Server CPU/記憶體使用率
+3. 考慮將 SQLite 替換為 MS SQL Server
+
+</details>
+
+<details>
+<summary><b>Q: 如何設定 HTTPS？</b></summary>
+
+1. 取得 SSL 憑證（公司內部 CA 或自簽憑證）
+2. 修改 Nginx 設定加入 SSL：
+
+```nginx
+server {
+    listen 443 ssl;
+    ssl_certificate     C:/certs/server.crt;
+    ssl_certificate_key C:/certs/server.key;
+    # ... 其他設定
+}
+```
+
+3. 開放防火牆 port 443
+
+</details>
 
 ---
 

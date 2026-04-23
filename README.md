@@ -8,23 +8,37 @@
 
 ### Dashboard 儀表板
 - **KPI 卡片** — 即時顯示 Solution 總數、MP (Mass Production) 覆蓋率、Developing 與 Planned 數量
-- **桑基圖 (Sankey Chart)** — 視覺化呈現 Defect Category → Defect Type → Station → Status 的流向關係
+- **桑基圖 (Sankey Chart)** — 視覺化呈現 Defect Category → Defect Type → Solution → Plant 的流向關係
+- **篩選功能** — 支援依 Defect Category 與 Process 篩選 Sankey 圖資料
 - **工廠覆蓋率表** — 各工廠的 MP 導入百分比排行
 
 ### Solution Map 樞紐表
 - **矩陣視圖** — Solution × Tank Line 的交叉表，以色塊顯示導入狀態
-- **多維篩選** — 依製程 (Process)、站點 (Station)、缺陷類別、工廠、狀態篩選
+- **六維篩選** — Process Category、Process、Station、Defect Category、Plant、Status 獨立下拉選單
+- **級聯篩選** — 選擇 Process Category 後自動篩選 Process 選項，選擇 Process 後自動篩選 Station 選項
 - **即時編輯** — Editor/Admin 點擊 cell 可直接修改狀態，支援樂觀鎖 (Optimistic Lock) 防止並發衝突
 - **批次更新** — 一次更新多筆 Solution Map 狀態
 - **Quality Attribute** — 顯示每個 Solution 的品質屬性
 
 ### Process Map 製程地圖
-- **流程視覺化** — 以 ECharts 圖表呈現 System → Melting → Finishing 製程流程
-- **站點詳情** — 點擊站點節點查看相關 Solution 清單與狀態分佈
+- **生產線流程** — 以 ECharts Graph 圖表呈現站點的生產線順序 (依 Excel Station sheet 由上而下順序)
+- **蛇形佈局** — 站點依生產流程排列，每欄 10 個節點，奇數欄由上而下、偶數欄由下而上形成蛇形動線
+- **色彩區分** — 依 Process 類別著色 (Melting 綠色、Forming 青色、BOD 深綠、CBW 黃色、INSP 紅色、DP 紫色、System 藍色)
+- **節點大小** — 依該站點關聯的 Solution 數量動態調整
+- **站點詳情** — 點擊站點節點查看相關 Solution 清單
 
 ### Data Management 資料管理
-- **CRUD 操作** — Solutions、Defect Types、Stations、Tank Lines 的新增/編輯/刪除
-- **Tank/Line 類型** — 區分 Tank（熔融槽）與 Line（產線）兩種類型
+- **完整 CRUD** — 9 個 Tab 管理所有資料實體：
+  - **Solutions** — 解決方案管理，支援 Defect Type 與 Station 下拉選單
+  - **Defect Categories** — 缺陷大類管理
+  - **Defect Types** — 缺陷類型管理，支援 Category 下拉選單
+  - **Processes** — 製程管理，支援 Category 選擇 (Melting/Finishing/System)
+  - **Stations** — 站點管理，支援 Process 下拉選單並顯示 Category
+  - **Plants** — 工廠管理
+  - **Tank Lines** — 產線管理，支援 Plant 下拉選單與 Tank/Line 類型
+  - **Import** — Excel 匯入 (矩陣/清單格式)
+  - **Export** — Excel 匯出
+- **關聯下拉選單** — 所有子層級實體編輯時自動載入父層級選項
 - **Excel 匯入** — 支援矩陣格式與清單格式，提供預覽確認流程 (Upload → Preview → Confirm)
 - **Excel 匯出** — 依篩選條件匯出 .xlsx 檔案
 - **範本下載** — 提供標準匯入範本
@@ -559,47 +573,62 @@ Step 6: Solution Map (導入狀態)
 
 前往 **Data Management** 頁面，依照以下順序在各 Tab 操作：
 
-**2-1. Stations Tab — 新增站點**
+**2-1. Plants Tab — 新增工廠**
 
-> 前提：需先透過 API（方式二）或 seed 腳本建立 Process（製程），因為 Station 必須歸屬於某個 Process。
+1. 切換至 **Plants** Tab
+2. 點擊 **Add Plant** 按鈕
+3. 輸入工廠名稱（如 Plant Alpha）和代碼（如 A）
+4. 儲存
 
-1. 切換至 **Stations** Tab
-2. 點擊 **Add** 按鈕
-3. 選擇所屬 Process（如 Finishing）
-4. 輸入 Station 名稱（如 Coating）
-5. 儲存
-
-**2-2. Defect Types Tab — 新增缺陷類型**
-
-> 前提：需先透過 API（方式二）或 seed 腳本建立 Defect Category（缺陷大類）。
-
-1. 切換至 **Defect Types** Tab
-2. 點擊 **Add** 按鈕
-3. 選擇所屬 Category（如 Surface）
-4. 輸入 Type 名稱（如 Bubble）
-5. 儲存
-
-**2-3. Tank Lines Tab — 新增產線**
-
-> 前提：需先透過 API（方式二）或 seed 腳本建立 Plant（工廠）。
+**2-2. Tank Lines Tab — 新增產線**
 
 1. 切換至 **Tank Lines** Tab
-2. 點擊 **Add** 按鈕
+2. 點擊 **Add Tank Line** 按鈕
 3. 選擇所屬 Plant（如 Plant Alpha）
 4. 輸入名稱和代碼
 5. 選擇類型：**Tank**（熔融槽）或 **Line**（產線）
 6. 儲存
 
-**2-4. Solutions Tab — 新增解決方案**
+**2-3. Processes Tab — 新增製程**
 
-> 前提：Defect Type 和 Station 都已建立。
+1. 切換至 **Processes** Tab
+2. 點擊 **Add Process** 按鈕
+3. 選擇 Category（Melting / Finishing / System）
+4. 輸入 Process 名稱（如 Forming、BOD、CBW）
+5. 儲存
+
+**2-4. Stations Tab — 新增站點**
+
+1. 切換至 **Stations** Tab
+2. 點擊 **Add Station** 按鈕
+3. 選擇所屬 Process（下拉選單會顯示 Process 名稱與 Category）
+4. 輸入 Station 名稱（如 Coating）
+5. 儲存
+
+**2-5. Defect Categories Tab — 新增缺陷大類**
+
+1. 切換至 **Defect Categories** Tab
+2. 點擊 **Add Defect Category** 按鈕
+3. 輸入 Category 名稱（如 Surface、Structural）
+4. 儲存
+
+**2-6. Defect Types Tab — 新增缺陷類型**
+
+1. 切換至 **Defect Types** Tab
+2. 點擊 **Add Defect Type** 按鈕
+3. 選擇所屬 Category（下拉選單）
+4. 輸入 Type 名稱（如 Bubble）
+5. 儲存
+
+**2-7. Solutions Tab — 新增解決方案**
 
 1. 切換至 **Solutions** Tab
-2. 點擊 **Add** 按鈕
-3. 選擇 Defect Type（如 Bubble）
-4. 選擇 Station（如 Coating）
+2. 點擊 **Add Solution** 按鈕
+3. 選擇 Defect Type（下拉選單會顯示 Type 名稱與 Category）
+4. 選擇 Station（下拉選單會顯示 Station 名稱與 Process）
 5. 輸入 Solution 名稱（如 Anti-Bubble Spray）
-6. 儲存
+6. 可選填 Quality Attribute 和 Description
+7. 儲存
 
 #### Step 3: 設定導入狀態（Solution Map）
 
@@ -831,13 +860,13 @@ Body: {
 | `/api/v1/solution-map` | GET | 樞紐表資料 | Viewer+ |
 | `/api/v1/solution-map/{id}` | PUT | 更新狀態 (含樂觀鎖) | Editor+ |
 | `/api/v1/solution-map/batch` | POST | 批次 Upsert | Editor+ |
-| `/api/v1/solutions` | CRUD | 解決方案管理 | GET: Viewer+ / Write: Editor+ |
-| `/api/v1/defect-categories` | CRUD | 缺陷大類 | GET: Viewer+ / Write: Admin |
-| `/api/v1/defect-types` | CRUD | 缺陷類型 | GET: Viewer+ / Write: Admin |
-| `/api/v1/processes` | CRUD | 製程 | GET: Viewer+ / Write: Admin |
-| `/api/v1/stations` | CRUD | 站點 | GET: Viewer+ / Write: Admin |
-| `/api/v1/plants` | CRUD | 工廠 | GET: Viewer+ / Write: Admin |
-| `/api/v1/tank-lines` | CRUD | 產線 | GET: Viewer+ / Write: Admin |
+| `/api/v1/solutions` | CRUD | 解決方案管理 | GET: Viewer+ / Write: Editor+ / Delete: Admin |
+| `/api/v1/defect-categories` | CRUD | 缺陷大類 | GET: Viewer+ / Write: Admin / Delete: Admin |
+| `/api/v1/defect-types` | CRUD | 缺陷類型 | GET: Viewer+ / Write: Admin / Delete: Admin |
+| `/api/v1/processes` | CRUD | 製程 (含 category 欄位) | GET: Viewer+ / Write: Admin / Delete: Admin |
+| `/api/v1/stations` | CRUD | 站點 | GET: Viewer+ / Write: Admin / Delete: Admin |
+| `/api/v1/plants` | CRUD | 工廠 | GET: Viewer+ / Write: Admin / Delete: Admin |
+| `/api/v1/tank-lines` | CRUD | 產線 | GET: Viewer+ / Write: Admin / Delete: Admin |
 | `/api/v1/statuses` | CRUD | 狀態定義 | GET: Viewer+ / Write: Admin |
 | `/api/v1/dashboard/summary` | GET | KPI + Sankey | Viewer+ |
 | `/api/v1/dashboard/defect-analysis` | GET | 缺陷分析 | Viewer+ |
@@ -887,10 +916,10 @@ Dt_Quality_Roadmap/
 │   │   │   └── charts/             # SankeyChart, StatusBadge
 │   │   ├── features/
 │   │   │   ├── auth/               # 登入/註冊/密碼重設
-│   │   │   ├── dashboard/          # KPI + Sankey + 覆蓋率
-│   │   │   ├── solution-map/       # 樞紐表 + 篩選 + 編輯
-│   │   │   ├── process-map/        # 製程流程圖
-│   │   │   ├── data-management/    # CRUD + 匯入匯出
+│   │   │   ├── dashboard/          # KPI + Sankey + 覆蓋率 + 篩選
+│   │   │   ├── solution-map/       # 樞紐表 + 六維篩選 + 級聯邏輯 + 編輯
+│   │   │   ├── process-map/        # 生產線流程圖 (蛇形佈局)
+│   │   │   ├── data-management/    # 9 Tab CRUD (含 Plant/Process/DefectCategory)
 │   │   │   ├── analysis/           # 缺陷/製程分析
 │   │   │   └── admin/              # 用戶管理 + 系統設定
 │   │   ├── hooks/                  # useSolutionMap, useReferenceData

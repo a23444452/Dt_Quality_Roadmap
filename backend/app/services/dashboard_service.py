@@ -19,8 +19,8 @@ def get_summary(
 ) -> dict:
     statuses = {s.id: s for s in db.query(StatusDefinition).all()}
     mp_status = next((s for s in statuses.values() if s.code == "MP"), None)
-    dev_status = next((s for s in statuses.values() if s.code == "DEV"), None)
-    plan_status = next((s for s in statuses.values() if s.code == "PLAN"), None)
+    dev_status = next((s for s in statuses.values() if s.code == "DEVELOPING"), None)
+    plan_status = next((s for s in statuses.values() if s.code == "PLANNED"), None)
 
     total = db.query(func.count(SolutionMap.id)).scalar() or 0
 

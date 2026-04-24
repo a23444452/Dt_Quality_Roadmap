@@ -7,6 +7,10 @@ interface KpiCardsProps {
 }
 
 export function KpiCards({ data }: KpiCardsProps) {
+  const nonMpCount = data.total_solutions - data.mp_count
+  const developingPercentage = nonMpCount > 0 ? (data.developing_count / nonMpCount) * 100 : 0
+  const plannedPercentage = nonMpCount > 0 ? (data.planned_count / nonMpCount) * 100 : 0
+
   const cards = [
     {
       title: 'Total Solutions',
@@ -14,6 +18,11 @@ export function KpiCards({ data }: KpiCardsProps) {
       icon: LayoutGrid,
       accent: 'text-foreground',
       iconBg: 'bg-slate-100',
+      extra: (
+        <p className="text-xs text-muted-foreground mt-2">
+          {data.mp_count} MP + {data.developing_count} Developing + {data.planned_count} Planned
+        </p>
+      ),
     },
     {
       title: 'MP Rate',
@@ -39,6 +48,11 @@ export function KpiCards({ data }: KpiCardsProps) {
       icon: Wrench,
       accent: 'text-yellow-600',
       iconBg: 'bg-yellow-50',
+      extra: (
+        <p className="text-xs text-muted-foreground mt-2">
+          {developingPercentage.toFixed(1)}% of {nonMpCount} non-MP solutions
+        </p>
+      ),
     },
     {
       title: 'Planned',
@@ -46,6 +60,11 @@ export function KpiCards({ data }: KpiCardsProps) {
       icon: CalendarClock,
       accent: 'text-blue-600',
       iconBg: 'bg-blue-50',
+      extra: (
+        <p className="text-xs text-muted-foreground mt-2">
+          {plannedPercentage.toFixed(1)}% of {nonMpCount} non-MP solutions
+        </p>
+      ),
     },
   ]
 

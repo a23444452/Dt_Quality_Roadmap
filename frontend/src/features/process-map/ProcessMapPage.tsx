@@ -200,8 +200,7 @@ export function ProcessMapPage() {
                       <th className="text-left px-4 py-3 font-medium">Station</th>
                       <th className="text-left px-4 py-3 font-medium">Solution Name</th>
                       <th className="text-left px-4 py-3 font-medium">Quality Attribute</th>
-                      <th className="text-left px-4 py-3 font-medium">Defect Category</th>
-                      <th className="text-left px-4 py-3 font-medium">Defect Type</th>
+                      <th className="text-left px-4 py-3 font-medium">MP Plants</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -217,11 +216,18 @@ export function ProcessMapPage() {
                           {sol.quality_attribute || '-'}
                         </td>
                         <td className="px-4 py-3">
-                          <Badge variant="secondary" className="text-xs font-normal">
-                            {sol.defect_category}
-                          </Badge>
+                          {sol.mp_plants && sol.mp_plants.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {sol.mp_plants.map((plant) => (
+                                <Badge key={plant} variant="default" className="text-xs font-normal bg-green-600">
+                                  {plant}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">{sol.defect_type}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -10,6 +10,7 @@ interface Solution {
   defect_category: string
   station: string
   process: string
+  mp_plants: string[]
 }
 
 interface SolutionMapData {

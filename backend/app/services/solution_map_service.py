@@ -85,10 +85,14 @@ def get_pivot_data(
     # Get statuses for lookup
     statuses = {s.id: s for s in db.query(StatusDefinition).all()}
 
+    # Build line_id to plant_name mapping
+    line_to_plant = {tl.id: plt.name for tl, plt in lines}
+
     # Build response
     result_solutions = []
     for sol, dtype, dcat, sta, proc in solutions:
         sol_statuses = {}
+        mp_plants = set()
         for tl, plt in lines:
             key = f"line_{tl.id}"
             sm = maps.get((sol.id, tl.id))
@@ -101,6 +105,9 @@ def get_pivot_data(
                     "notes": sm.notes,
                     "version": sm.version,
                 }
+                # Track MP plants
+                if st and st.code == "MP":
+                    mp_plants.add(plt.name)
             else:
                 sol_statuses[key] = None
 
@@ -113,6 +120,7 @@ def get_pivot_data(
             "station": sta.name,
             "process": proc.name,
             "statuses": sol_statuses,
+            "mp_plants": sorted(mp_plants),
         })
 
     result_lines = [

@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 
 interface DefectType {
   id: number
@@ -28,9 +29,10 @@ interface DefectTypeForm {
   name: string
   description: string
   sort_order: number
+  is_active: boolean
 }
 
-const EMPTY_FORM: DefectTypeForm = { category_id: '', name: '', description: '', sort_order: 0 }
+const EMPTY_FORM: DefectTypeForm = { category_id: '', name: '', description: '', sort_order: 0, is_active: true }
 
 export function DefectTypeTab() {
   const qc = useQueryClient()
@@ -78,7 +80,7 @@ export function DefectTypeTab() {
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setOpen(true) }
   const openEdit = (d: DefectType) => {
     setEditing(d)
-    setForm({ category_id: d.category_id, name: d.name, description: d.description ?? '', sort_order: d.sort_order })
+    setForm({ category_id: d.category_id, name: d.name, description: d.description ?? '', sort_order: d.sort_order, is_active: d.is_active })
     setOpen(true)
   }
   const closeDialog = () => { setOpen(false); setEditing(null); setForm(EMPTY_FORM) }
@@ -202,6 +204,20 @@ export function DefectTypeTab() {
                 onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
               />
             </div>
+            {editing && (
+              <div className="flex items-center justify-between">
+                <Label>Status</Label>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={form.is_active}
+                    onCheckedChange={(checked) => setForm({ ...form, is_active: checked })}
+                  />
+                  <span className={`text-sm ${form.is_active ? 'text-green-600' : 'text-gray-500'}`}>
+                    {form.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>

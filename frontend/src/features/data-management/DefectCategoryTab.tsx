@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 
 interface DefectCategory {
   id: number
@@ -20,9 +21,10 @@ interface DefectCategoryForm {
   name: string
   description: string
   sort_order: number
+  is_active: boolean
 }
 
-const EMPTY_FORM: DefectCategoryForm = { name: '', description: '', sort_order: 0 }
+const EMPTY_FORM: DefectCategoryForm = { name: '', description: '', sort_order: 0, is_active: true }
 
 export function DefectCategoryTab() {
   const qc = useQueryClient()
@@ -58,7 +60,7 @@ export function DefectCategoryTab() {
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setOpen(true) }
   const openEdit = (c: DefectCategory) => {
     setEditing(c)
-    setForm({ name: c.name, description: c.description ?? '', sort_order: c.sort_order })
+    setForm({ name: c.name, description: c.description ?? '', sort_order: c.sort_order, is_active: c.is_active })
     setOpen(true)
   }
   const closeDialog = () => { setOpen(false); setEditing(null); setForm(EMPTY_FORM) }
@@ -156,6 +158,20 @@ export function DefectCategoryTab() {
                 onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
               />
             </div>
+            {editing && (
+              <div className="flex items-center justify-between">
+                <Label>Status</Label>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={form.is_active}
+                    onCheckedChange={(checked) => setForm({ ...form, is_active: checked })}
+                  />
+                  <span className={`text-sm ${form.is_active ? 'text-green-600' : 'text-gray-500'}`}>
+                    {form.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>

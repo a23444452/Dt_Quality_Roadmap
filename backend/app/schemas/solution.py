@@ -7,12 +7,14 @@ class SolutionCreate(BaseModel):
     name: str
     quality_attribute: str | None = None
     description: str | None = None
+    is_g_item: bool = False
 
 
 class SolutionUpdate(BaseModel):
     name: str | None = None
     quality_attribute: str | None = None
     description: str | None = None
+    is_g_item: bool | None = None
     is_active: bool | None = None
 
 
@@ -23,6 +25,7 @@ class SolutionResponse(BaseModel):
     name: str
     quality_attribute: str | None
     description: str | None
+    is_g_item: bool
     is_active: bool
 
     model_config = {"from_attributes": True}

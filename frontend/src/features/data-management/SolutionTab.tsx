@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,7 @@ interface Solution {
   quality_attribute: string | null
   description: string | null
   sort_order: number
+  is_g_item: boolean
   is_active: boolean
 }
 
@@ -62,10 +64,11 @@ interface SolutionForm {
   quality_attribute: string
   description: string
   sort_order: number
+  is_g_item: boolean
   is_active: boolean
 }
 
-const EMPTY_FORM: SolutionForm = { name: '', defect_type_id: '', station_id: '', quality_attribute: '', description: '', sort_order: 0, is_active: true }
+const EMPTY_FORM: SolutionForm = { name: '', defect_type_id: '', station_id: '', quality_attribute: '', description: '', sort_order: 0, is_g_item: false, is_active: true }
 
 export function SolutionTab() {
   const qc = useQueryClient()
@@ -158,6 +161,12 @@ export function SolutionTab() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['solutions'] }); setDeleteTarget(null) },
   })
 
+  const toggleGItemMutation = useMutation({
+    mutationFn: ({ id, is_g_item }: { id: number; is_g_item: boolean }) =>
+      apiClient.put(`/solutions/${id}`, { is_g_item }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['solutions'] }),
+  })
+
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setOpen(true) }
   const openEdit = (s: Solution) => {
     setEditing(s)
@@ -168,6 +177,7 @@ export function SolutionTab() {
       quality_attribute: s.quality_attribute ?? '',
       description: s.description ?? '',
       sort_order: s.sort_order,
+      is_g_item: s.is_g_item,
       is_active: s.is_active
     })
     setOpen(true)
@@ -212,11 +222,13 @@ export function SolutionTab() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Defect Type</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Station</TableHead>
+                <TableHead className="w-20">G$ Item</TableHead>
+                <TableHead>Solution Name</TableHead>
                 <TableHead>Process</TableHead>
+                <TableHead>Station</TableHead>
+                <TableHead>Quality Attribute</TableHead>
+                <TableHead>Defect Category</TableHead>
+                <TableHead>Defect Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
@@ -224,7 +236,7 @@ export function SolutionTab() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     No solutions found.
                   </TableCell>
                 </TableRow>
@@ -236,11 +248,23 @@ export function SolutionTab() {
                   const proc = sta ? processMap.get(sta.process_id) : null
                   return (
                     <TableRow key={s.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={s.is_g_item}
+                          disabled={!isAdmin}
+                          onCheckedChange={(checked) => {
+                            if (isAdmin) {
+                              toggleGItemMutation.mutate({ id: s.id, is_g_item: !!checked })
+                            }
+                          }}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{s.name}</TableCell>
-                      <TableCell>{dt?.name ?? `Type #${s.defect_type_id}`}</TableCell>
-                      <TableCell>{cat?.name ?? '—'}</TableCell>
-                      <TableCell>{sta?.name ?? `Station #${s.station_id}`}</TableCell>
                       <TableCell>{proc?.name ?? '—'}</TableCell>
+                      <TableCell>{sta?.name ?? `Station #${s.station_id}`}</TableCell>
+                      <TableCell>{s.quality_attribute ?? '—'}</TableCell>
+                      <TableCell>{cat?.name ?? '—'}</TableCell>
+                      <TableCell>{dt?.name ?? `Type #${s.defect_type_id}`}</TableCell>
                       <TableCell>
                         <span className={`px-2 py-0.5 text-xs rounded ${s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                           {s.is_active ? 'Active' : 'Inactive'}
@@ -349,6 +373,20 @@ export function SolutionTab() {
                 onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
               />
             </div>
+            {isAdmin && (
+              <div className="flex items-center justify-between">
+                <Label>G$ Item</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={form.is_g_item}
+                    onCheckedChange={(checked) => setForm({ ...form, is_g_item: !!checked })}
+                  />
+                  <span className={`text-sm ${form.is_g_item ? 'text-blue-600' : 'text-gray-500'}`}>
+                    {form.is_g_item ? 'Yes' : 'No'}
+                  </span>
+                </div>
+              </div>
+            )}
             {editing && (
               <div className="flex items-center justify-between">
                 <Label>Status</Label>

@@ -8,6 +8,7 @@
 
 ### Dashboard 儀表板
 - **KPI 卡片** — 即時顯示 Solution 總數、MP (Mass Production) 覆蓋率、Developing 與 Planned 數量
+- **計算說明** — 每張 KPI 卡片下方顯示計算方式（如「15 MP + 20 Developing + 10 Planned」）
 - **桑基圖 (Sankey Chart)** — 視覺化呈現 Defect Category → Defect Type → Solution → Plant 的流向關係
 - **篩選功能** — 支援依 Defect Category 與 Process 篩選 Sankey 圖資料
 - **工廠覆蓋率表** — 各工廠的 MP 導入百分比排行
@@ -24,7 +25,10 @@
 - **互動式流程圖** — 顯示完整製程流程圖片 (Melting → Forming → BOD → CBW → INSP → DP)
 - **Process 圓點熱點** — 6 個彩色圓點代表各製程區域，點擊可查看詳細資訊
 - **Hover 資訊提示** — 滑鼠移至圓點顯示該 Process 的所有站點名稱與 Solution 數量
-- **D^t Solution 表格** — 點擊圓點後在下方顯示該製程的完整 Solution 清單，包含 Station、Solution Name、Quality Attribute、Defect Category、Defect Type
+- **D^t Solution 表格** — 點擊圓點後在下方顯示該製程的完整 Solution 清單
+- **表格欄位** — Station、Solution Name、Quality Attribute、MP Plants（顯示已量產的工廠數量，如「3 Plants」）
+- **Process Category 篩選** — 支援依製程類別 (Melting/Finishing/System) 篩選
+- **Line Type 篩選** — 支援依產線類型 (Tank/Line) 篩選
 - **色彩區分** — 依 Process 著色 (Melting 紅色、Forming 紫色、BOD 橘色、CBW 藍色、INSP 綠色、DP 青色)
 - **選取狀態效果** — 選取的圓點放大並帶有發光脈動動畫
 
@@ -39,10 +43,14 @@
   - **Tank Lines** — 產線管理，支援 Plant 下拉選單與 Tank/Line 類型
   - **Import** — Excel 匯入 (矩陣/清單格式)
   - **Export** — Excel 匯出
+- **G$ Item 欄位** — Solutions 表格支援標記為 G$ Item（僅 Admin 可編輯）
+- **狀態切換** — 編輯對話框支援 Active/Inactive 狀態切換
+- **刪除確認** — 刪除操作前彈出確認對話框，避免誤刪
+- **權限控制** — 依據使用者的 Plant/Process 權限控制編輯範圍
 - **關聯下拉選單** — 所有子層級實體編輯時自動載入父層級選項
 - **Excel 匯入** — 支援矩陣格式與清單格式，提供預覽確認流程 (Upload → Preview → Confirm)
 - **Excel 匯出** — 依篩選條件匯出 .xlsx 檔案
-- **範本下載** — 提供標準匯入範本
+- **範本下載** — 提供標準匯入範本，含下拉式選單驗證與參考工作表
 
 ### Analysis 分析頁面
 - **製程分析** — 各製程 Solution 數量堆疊圖、圓餅圖分佈、彙總表格
@@ -54,8 +62,10 @@
 ### 身份驗證與授權
 - **本地帳號** — 帳號密碼登入，密碼以 bcrypt 雜湊儲存
 - **註冊審核制** — 新用戶註冊後需管理員審核通過才能使用
+- **Plant/Process 選擇** — 註冊時選擇所屬 Plant 與 Process，決定可編輯的資料範圍
 - **JWT Token** — Access Token (8hr) + Refresh Token (7 天, HttpOnly Cookie)
 - **角色權限** — Viewer (唯讀) / Editor (編輯) / Admin (管理)
+- **Cell-level 權限** — Editor 只能編輯自己 Plant 和 Process 範圍內的 Solution Map
 - **密碼重設** — Email 重設連結 + 管理員手動重設
 
 ---
@@ -842,8 +852,10 @@ Body: {
 
 1. 開啟登入頁面，點擊「Register」連結
 2. 填寫 Username、Email、Password（需含大小寫字母及數字，至少 8 字元）、Display Name
-3. 送出後帳號狀態為「Pending」，需管理員審核
-4. 管理員至 **Admin → User Management** 頁面，找到 Pending 用戶，選擇角色後點擊「Approve」
+3. 選擇所屬 Plant（可多選）和 Process（可多選），決定可編輯的資料範圍
+4. 送出後帳號狀態為「Pending」，需管理員審核
+5. 管理員至 **Admin → User Management** 頁面，找到 Pending 用戶，選擇角色後點擊「Approve」
+6. 管理員可隨時在 User Management 頁面修改使用者的 Plant/Process 權限
 
 ### 角色權限說明
 
@@ -851,12 +863,19 @@ Body: {
 |------|--------|--------|-------|
 | 瀏覽所有頁面 | O | O | O |
 | 匯出 Excel | O | O | O |
-| 編輯 Solution Map 狀態 | X | O | O |
-| 新增/修改 Solutions | X | O | O |
+| 編輯 Solution Map 狀態 | X | O (限 Plant/Process 範圍) | O |
+| 新增/修改 Solutions | X | O (限 Process 範圍) | O |
+| 編輯 G$ Item 欄位 | X | X | O |
 | 匯入 Excel | X | O | O |
 | 刪除資料 | X | X | O |
 | 管理用戶 (Approve/Reject) | X | X | O |
+| 編輯使用者 Plant/Process | X | X | O |
 | 管理 Reference Data (Process, Category, Plant) | X | X | O |
+
+**Editor 權限範圍說明：**
+- Editor 只能編輯自己註冊時選擇的 Plant 和 Process 範圍內的資料
+- 新增 Solution 時，Station 下拉選單只會顯示在 Editor 權限範圍內的選項
+- Admin 可以在 User Management 頁面修改使用者的 Plant/Process 權限
 
 ---
 

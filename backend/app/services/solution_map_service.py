@@ -10,6 +10,7 @@ from app.models.status_definition import StatusDefinition
 
 def get_pivot_data(
     db: Session,
+    process_category: str | None = None,
     process_id: int | None = None,
     station_id: int | None = None,
     defect_category_id: int | None = None,
@@ -26,6 +27,15 @@ def get_pivot_data(
         .filter(Solution.is_active == True)  # noqa: E712
     )
 
+    # Filter by process_category
+    if process_category:
+        if process_category == "System":
+            # System: only show solutions where Process='System' AND Station='System'
+            query = query.filter(Process.name == "System", Station.name == "System")
+        else:
+            # Melting/Finishing: filter by process category
+            query = query.filter(Process.category == process_category)
+
     if process_id:
         query = query.filter(Process.id == process_id)
     if station_id:
@@ -35,12 +45,23 @@ def get_pivot_data(
 
     solutions = query.all()
 
-    # Get lines
+    # Get lines - filter by line_type based on process_category
     line_query = (
         db.query(TankLine, Plant)
         .join(Plant, TankLine.plant_id == Plant.id)
         .filter(TankLine.is_active == True)  # noqa: E712
     )
+
+    # Filter lines by process_category
+    if process_category:
+        if process_category == "Melting":
+            # Melting: only show Tanks
+            line_query = line_query.filter(TankLine.line_type == "Tank")
+        elif process_category == "Finishing":
+            # Finishing: only show Lines
+            line_query = line_query.filter(TankLine.line_type == "Line")
+        # System: show all Tanks and Lines (no filter)
+
     if plant_id:
         line_query = line_query.filter(Plant.id == plant_id)
     lines = line_query.order_by(Plant.sort_order, TankLine.sort_order).all()

@@ -20,7 +20,7 @@ export function SolutionMapPage() {
   const canEdit = user?.role === 'editor' || user?.role === 'admin'
 
   const { data, isLoading, isError, error } = useSolutionMap(
-    filters as Record<string, number | undefined>
+    filters as Record<string, string | number | undefined>
   )
 
   return (

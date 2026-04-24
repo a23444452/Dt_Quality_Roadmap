@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { PivotData } from '@/types/solution-map'
 
-export function useSolutionMap(filters: Record<string, number | undefined>) {
+export function useSolutionMap(filters: Record<string, string | number | undefined>) {
   return useQuery<PivotData>({
     queryKey: ['solution-map', filters],
     queryFn: async () => {

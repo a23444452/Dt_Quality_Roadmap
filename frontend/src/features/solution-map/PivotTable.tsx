@@ -115,8 +115,8 @@ export function PivotTable({ solutions, lines, statuses, canEdit }: PivotTablePr
 
   return (
     <>
-      <div className="overflow-auto">
-        <table className="min-w-full border-collapse text-sm">
+      <div className="overflow-x-auto overflow-y-auto max-w-full">
+        <table className="border-collapse text-sm" style={{ minWidth: 'max-content' }}>
           <thead>
             {/* Plant group header row */}
             <tr className="bg-gray-100">

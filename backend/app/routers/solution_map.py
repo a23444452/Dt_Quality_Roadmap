@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api/v1/solution-map", tags=["solution-map"])
 
 @router.get("")
 def get_solution_map(
+    process_category: str | None = None,
     process_id: int | None = None,
     station_id: int | None = None,
     defect_category_id: int | None = None,
@@ -22,7 +23,7 @@ def get_solution_map(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    data = get_pivot_data(db, process_id, station_id, defect_category_id, plant_id, status_id)
+    data = get_pivot_data(db, process_category, process_id, station_id, defect_category_id, plant_id, status_id)
     return ok(data)
 
 

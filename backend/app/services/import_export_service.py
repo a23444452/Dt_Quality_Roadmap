@@ -14,7 +14,7 @@ from app.models.status_definition import StatusDefinition
 from app.utils.excel import (
     generate_list_export,
     generate_matrix_export,
-    generate_template,
+    generate_template as generate_template_excel,
     parse_list_format,
     parse_matrix_format,
     workbook_to_bytes,
@@ -251,3 +251,62 @@ def generate_export(
         wb = generate_list_export(records)
 
     return workbook_to_bytes(wb)
+
+
+def generate_template(db: Session, format: str) -> bytes:
+    """Generate import template with reference data sheets."""
+    from app.models.defect import DefectType
+    from app.models.process import Process, Station
+
+    # Query solutions with related data
+    solutions_query = (
+        db.query(Solution, DefectType, Station, Process)
+        .join(DefectType, Solution.defect_type_id == DefectType.id)
+        .join(Station, Solution.station_id == Station.id)
+        .join(Process, Station.process_id == Process.id)
+        .filter(Solution.is_active == True)  # noqa: E712
+        .order_by(Process.sort_order, Station.sort_order, Solution.name)
+    )
+    solutions = [
+        {
+            "name": sol.name,
+            "defect_type": dtype.name,
+            "station": sta.name,
+            "process": proc.name,
+        }
+        for sol, dtype, sta, proc in solutions_query.all()
+    ]
+
+    # Query tank/lines with plant info
+    from app.models.plant import Plant
+
+    lines_query = (
+        db.query(TankLine, Plant)
+        .join(Plant, TankLine.plant_id == Plant.id)
+        .filter(TankLine.is_active == True)  # noqa: E712
+        .order_by(Plant.sort_order, TankLine.sort_order)
+    )
+    tank_lines = [
+        {
+            "name": tl.name,
+            "plant": plt.name,
+            "line_type": tl.line_type,
+        }
+        for tl, plt in lines_query.all()
+    ]
+
+    # Query statuses
+    statuses_query = (
+        db.query(StatusDefinition)
+        .filter(StatusDefinition.is_active == True)  # noqa: E712
+        .order_by(StatusDefinition.sort_order)
+    )
+    statuses = [
+        {
+            "code": s.code,
+            "name": s.name,
+        }
+        for s in statuses_query.all()
+    ]
+
+    return generate_template_excel(format, solutions, tank_lines, statuses)

@@ -2,6 +2,7 @@ from io import BytesIO
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
+from openpyxl.worksheet.datavalidation import DataValidation
 
 LIST_HEADERS = ["solution", "defect_type", "station", "plant", "line", "status"]
 MATRIX_SOLUTION_COLS = ["solution", "defect_type", "station"]
@@ -145,16 +146,161 @@ def generate_matrix_export(data: list[dict], lines: list[dict]) -> Workbook:
     return wb
 
 
-def generate_template(format: str) -> bytes:
-    """Generate an empty template workbook with headers only. Returns bytes."""
+def generate_template(
+    format: str,
+    solutions: list[dict] | None = None,
+    tank_lines: list[dict] | None = None,
+    statuses: list[dict] | None = None,
+) -> bytes:
+    """Generate a template workbook with headers, reference data sheets, and dropdown validation.
+
+    Args:
+        format: 'list' or 'matrix'
+        solutions: list of dicts with keys: name, defect_type, station, process
+        tank_lines: list of dicts with keys: name, plant, line_type
+        statuses: list of dicts with keys: code, name
+    """
     wb = Workbook()
     ws = wb.active
     ws.title = "Template"
 
+    # Build unique lists for dropdowns
+    unique_defect_types = list(dict.fromkeys([s.get("defect_type", "") for s in (solutions or []) if s.get("defect_type")]))
+    unique_stations = list(dict.fromkeys([s.get("station", "") for s in (solutions or []) if s.get("station")]))
+    unique_plants = list(dict.fromkeys([tl.get("plant", "") for tl in (tank_lines or []) if tl.get("plant")]))
+    unique_line_names = list(dict.fromkeys([tl.get("name", "") for tl in (tank_lines or []) if tl.get("name")]))
+    status_codes = [st.get("code", "") for st in (statuses or []) if st.get("code")]
+
+    # Number of data rows to apply validation (100 rows should be enough)
+    max_rows = 100
+
     if format == "matrix":
-        _write_header(ws, MATRIX_SOLUTION_COLS + ["Plant A | Line 1", "Plant A | Line 2"])
+        # Use actual tank/line names as column headers if provided
+        if tank_lines:
+            line_headers = [f"{tl['plant']} | {tl['name']}" for tl in tank_lines]
+        else:
+            line_headers = ["Plant A | Line 1", "Plant A | Line 2"]
+        _write_header(ws, MATRIX_SOLUTION_COLS + line_headers)
+
+        # Add example row with instructions
+        ws.append(["(Solution name)", "(Defect type)", "(Station)"] + ["" for _ in line_headers])
+
+        # Add data validation for matrix format
+        # Column B: Defect Type dropdown
+        if unique_defect_types:
+            dv_defect = _create_dropdown(unique_defect_types)
+            dv_defect.add(f"B3:B{max_rows + 2}")
+            ws.add_data_validation(dv_defect)
+
+        # Column C: Station dropdown
+        if unique_stations:
+            dv_station = _create_dropdown(unique_stations)
+            dv_station.add(f"C3:C{max_rows + 2}")
+            ws.add_data_validation(dv_station)
+
+        # Status columns (D onwards): Status code dropdown - use single DV for all columns
+        if status_codes:
+            dv_status = _create_dropdown(status_codes)
+            for col_idx in range(4, 4 + len(line_headers)):
+                col_letter = _col_idx_to_letter(col_idx)
+                dv_status.add(f"{col_letter}3:{col_letter}{max_rows + 2}")
+            ws.add_data_validation(dv_status)
+
     else:
         _write_header(ws, LIST_HEADERS)
+        # Add example row with instructions
+        ws.append(["(Solution name)", "", "", "", "", ""])
+
+        # Add data validation for list format
+        # Column B: Defect Type dropdown
+        if unique_defect_types:
+            dv_defect = _create_dropdown(unique_defect_types)
+            dv_defect.add(f"B3:B{max_rows + 2}")
+            ws.add_data_validation(dv_defect)
+
+        # Column C: Station dropdown
+        if unique_stations:
+            dv_station = _create_dropdown(unique_stations)
+            dv_station.add(f"C3:C{max_rows + 2}")
+            ws.add_data_validation(dv_station)
+
+        # Column D: Plant dropdown
+        if unique_plants:
+            dv_plant = _create_dropdown(unique_plants)
+            dv_plant.add(f"D3:D{max_rows + 2}")
+            ws.add_data_validation(dv_plant)
+
+        # Column E: Tank/Line dropdown (just line names)
+        if unique_line_names:
+            dv_line = _create_dropdown(unique_line_names)
+            dv_line.add(f"E3:E{max_rows + 2}")
+            ws.add_data_validation(dv_line)
+
+        # Column F: Status dropdown
+        if status_codes:
+            dv_status = _create_dropdown(status_codes)
+            dv_status.add(f"F3:F{max_rows + 2}")
+            ws.add_data_validation(dv_status)
+
+    # Adjust column widths for template sheet
+    ws.column_dimensions['A'].width = 35
+    ws.column_dimensions['B'].width = 20
+    ws.column_dimensions['C'].width = 15
+    if format == "list":
+        ws.column_dimensions['D'].width = 15
+        ws.column_dimensions['E'].width = 25
+        ws.column_dimensions['F'].width = 20
+
+    # Create reference sheets if data is provided
+    if solutions:
+        ws_solutions = wb.create_sheet("Reference - Solutions")
+        _write_header(ws_solutions, ["Solution Name", "Defect Type", "Station", "Process"])
+        for sol in solutions:
+            ws_solutions.append([
+                sol.get("name", ""),
+                sol.get("defect_type", ""),
+                sol.get("station", ""),
+                sol.get("process", ""),
+            ])
+        ws_solutions.column_dimensions['A'].width = 35
+        ws_solutions.column_dimensions['B'].width = 20
+        ws_solutions.column_dimensions['C'].width = 15
+        ws_solutions.column_dimensions['D'].width = 12
+
+    if tank_lines:
+        ws_lines = wb.create_sheet("Reference - Tank_Lines")
+        _write_header(ws_lines, ["Plant", "Tank/Line Name", "Type"])
+        for tl in tank_lines:
+            ws_lines.append([
+                tl.get("plant", ""),
+                tl.get("name", ""),
+                tl.get("line_type", ""),
+            ])
+        ws_lines.column_dimensions['A'].width = 15
+        ws_lines.column_dimensions['B'].width = 20
+        ws_lines.column_dimensions['C'].width = 10
+
+    if statuses:
+        ws_statuses = wb.create_sheet("Reference - Statuses")
+        _write_header(ws_statuses, ["Status Code", "Status Name", "Description"])
+        status_descriptions = {
+            "MP": "Mass Production - 已量產",
+            "DEVELOPING": "Developing - 開發中",
+            "INITIATION": "Initiation - 啟動中",
+            "PLANNED": "Planned - 已規劃",
+            "RESOURCE_CONSTRAIN": "Resource Constrain - 資源受限",
+            "NO_INTENTION": "No Intention - 無意導入",
+            "NA": "Not Applicable - 不適用",
+        }
+        for st in statuses:
+            ws_statuses.append([
+                st.get("code", ""),
+                st.get("name", ""),
+                status_descriptions.get(st.get("code", ""), ""),
+            ])
+        ws_statuses.column_dimensions['A'].width = 20
+        ws_statuses.column_dimensions['B'].width = 20
+        ws_statuses.column_dimensions['C'].width = 35
 
     return _workbook_to_bytes(wb)
 
@@ -164,6 +310,54 @@ def workbook_to_bytes(wb: Workbook) -> bytes:
 
 
 # ─── Internal helpers ─────────────────────────────────────────────────────────
+
+def _create_dropdown(options: list[str]) -> DataValidation:
+    """Create a DataValidation object for dropdown list.
+
+    Note: Excel inline list validation has a 255 character limit.
+    Options containing commas will have commas replaced with semicolons.
+    """
+    if not options:
+        raise ValueError("Cannot create dropdown with empty options list")
+
+    # Replace commas in option values to prevent breaking the dropdown
+    clean_options = [opt.replace(",", ";") for opt in options]
+    options_str = ",".join(clean_options)
+
+    if len(options_str) <= 255:
+        dv = DataValidation(
+            type="list",
+            formula1=f'"{options_str}"',
+            allow_blank=True,
+            showDropDown=False,  # False = show dropdown arrow
+        )
+    else:
+        # Truncate to fit 255 char limit, keeping complete options
+        truncated = options_str[:255]
+        last_comma = truncated.rfind(",")
+        if last_comma > 0:
+            truncated = truncated[:last_comma]
+        dv = DataValidation(
+            type="list",
+            formula1=f'"{truncated}"',
+            allow_blank=True,
+            showDropDown=False,
+        )
+    dv.error = "Please select a value from the dropdown list"
+    dv.errorTitle = "Invalid Input"
+    dv.prompt = "Select from list"
+    dv.promptTitle = "Available Options"
+    return dv
+
+
+def _col_idx_to_letter(col_idx: int) -> str:
+    """Convert 1-based column index to Excel column letter (1=A, 2=B, ..., 27=AA)."""
+    result = ""
+    while col_idx > 0:
+        col_idx, remainder = divmod(col_idx - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
 
 def _get_cell(row: tuple, col_index: dict[str, int], key: str):
     idx = col_index.get(key)

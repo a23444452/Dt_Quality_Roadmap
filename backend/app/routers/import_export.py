@@ -59,8 +59,11 @@ def export_data(
 
 
 @router.get("/template")
-def download_template(format: str = "list"):
-    content = generate_template(format)
+def download_template(
+    format: str = "list",
+    db: Session = Depends(get_db),
+):
+    content = generate_template(db, format)
     return StreamingResponse(
         io.BytesIO(content),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

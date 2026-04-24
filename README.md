@@ -770,28 +770,42 @@ Body: {
    - **List 格式** — 每列一筆記錄，適合少量精確匯入
    - **Matrix 格式** — 矩陣格式（模仿原始 Power BI 報表），適合全量匯入
 
+**範本特色：**
+- **下拉式選單驗證** — Defect Type、Station、Plant、Tank/Line、Status 欄位都有下拉選單，減少輸入錯誤
+- **Solution Name** — 保持自由輸入，可複製參考工作表中的名稱
+- **參考工作表** — 範本包含三個參考 Sheet：
+  - `Reference - Solutions` — 所有 Solution 名稱、Defect Type、Station、Process
+  - `Reference - Tank_Lines` — 所有 Plant、Tank/Line 名稱、類型 (Tank/Line)
+  - `Reference - Statuses` — 所有 Status Code、名稱、說明
+
 #### Step 2: 填寫 Excel
+
+從第 3 列開始填寫資料（第 1 列為標題，第 2 列為範例說明）。
+
+**填寫方式：**
+1. **Solution 欄位** — 手動輸入，可從 `Reference - Solutions` 工作表複製
+2. **其他欄位** — 點擊儲存格，從下拉選單中選擇（避免輸入錯誤）
 
 **List 格式範例：**
 
 | Solution | Defect Type | Station | Plant | Line | Status |
 |----------|-------------|---------|-------|------|--------|
 | Anti-Bubble Spray | Bubble | Coating | Plant Alpha | Line A-1 | MP |
-| Anti-Bubble Spray | Bubble | Coating | Plant Alpha | Line A-2 | DEV |
-| Anti-Bubble Spray | Bubble | Coating | Plant Beta | Line B-1 | PLAN |
+| Anti-Bubble Spray | Bubble | Coating | Plant Alpha | Line A-2 | DEVELOPING |
+| Anti-Bubble Spray | Bubble | Coating | Plant Beta | Line B-1 | PLANNED |
 | Slow Cool Cycle | Crack | Casting | Plant Alpha | Line A-1 | MP |
 
 **Matrix 格式範例：**
 
-| Defect Category | Defect Type | Station | Solution | PA-A1 | PA-A2 | PB-B1 |
-|-----------------|-------------|---------|----------|-------|-------|-------|
-| Surface | Bubble | Coating | Anti-Bubble Spray | MP | DEV | PLAN |
-| Structural | Crack | Casting | Slow Cool Cycle | MP | NA | DEV |
+| Solution | Defect Type | Station | Plant A \| Line A-1 | Plant A \| Line A-2 | Plant B \| Line B-1 |
+|----------|-------------|---------|---------------------|---------------------|---------------------|
+| Anti-Bubble Spray | Bubble | Coating | MP | DEVELOPING | PLANNED |
+| Slow Cool Cycle | Crack | Casting | MP | NA | DEVELOPING |
 
 > **欄位說明：**
-> - Status 欄位只接受代碼：`MP`、`DEV`、`PLAN`、`NA`、`HOLD`
-> - 產線欄位名稱（Matrix 格式）格式為 `{工廠代碼}-{產線代碼}`（如 `PA-A1`）
-> - 如果 Solution、Defect Type、Station 等尚未在系統中建立，匯入時會自動建立（List 格式）
+> - Status 欄位使用下拉選單，代碼包含：`MP`、`DEVELOPING`、`INITIATION`、`PLANNED`、`RESOURCE_CONSTRAIN`、`NO_INTENTION`、`NA`
+> - 產線欄位名稱（Matrix 格式）格式為 `{工廠名稱} | {Tank/Line 名稱}`
+> - 如果 Solution、Defect Type、Station 等尚未在系統中建立，匯入時會報錯，請先在 Data Management 中建立
 
 #### Step 3: 上傳並預覽
 

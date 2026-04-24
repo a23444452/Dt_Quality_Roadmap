@@ -65,7 +65,7 @@ export function SolutionMapPage() {
 
         {data && (
           <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-x-auto overflow-y-auto">
               <PivotTable
                 solutions={data.solutions}
                 lines={data.lines}
@@ -75,7 +75,7 @@ export function SolutionMapPage() {
             </div>
 
             {/* Legend */}
-            <div className="flex flex-wrap gap-3 px-4 py-3 border-t bg-white">
+            <div className="flex flex-wrap gap-3 px-4 py-3 border-t bg-white shrink-0">
               <span className="text-xs text-gray-500 font-medium self-center">Legend:</span>
               {data.filters.statuses.map((s) => (
                 <div key={s.id} className="flex items-center gap-1.5">

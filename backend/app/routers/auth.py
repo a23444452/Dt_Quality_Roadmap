@@ -9,6 +9,8 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
+    PlantInfo,
+    ProcessInfo,
     RegisterRequest,
     ResetPasswordRequest,
     UserInfo,
@@ -56,6 +58,8 @@ def login(request: Request, body: LoginRequest, response: Response, db: Session 
                 username=user.username,
                 display_name=user.display_name,
                 role=user.role,
+                plants=[PlantInfo(id=p.id, name=p.name) for p in user.plants],
+                processes=[ProcessInfo(id=p.id, name=p.name) for p in user.processes],
             ),
         ).model_dump()
     )
@@ -66,7 +70,15 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     from sqlalchemy.exc import IntegrityError
 
     try:
-        user = register_user(db, body.username, body.email, body.password, body.display_name)
+        user = register_user(
+            db,
+            body.username,
+            body.email,
+            body.password,
+            body.display_name,
+            body.plant_ids,
+            body.process_ids,
+        )
     except IntegrityError:
         raise HTTPException(status_code=409, detail="Username or email already exists")
 

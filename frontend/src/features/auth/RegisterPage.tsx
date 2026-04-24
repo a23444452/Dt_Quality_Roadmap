@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Card,
   CardContent,
@@ -12,6 +13,20 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import apiClient from '@/lib/api-client'
+import type { ApiResponse } from '@/types/api'
+
+interface ReferenceOption {
+  id: number
+  name: string
+  code?: string
+  category?: string
+}
+
+interface ReferenceOptions {
+  plants: ReferenceOption[]
+  processes: ReferenceOption[]
+}
 
 export function RegisterPage() {
   const { register } = useAuth()
@@ -21,13 +36,45 @@ export function RegisterPage() {
     email: '',
     password: '',
     display_name: '',
+    plant_ids: [] as number[],
+    process_ids: [] as number[],
   })
+  const [options, setOptions] = useState<ReferenceOptions>({ plants: [], processes: [] })
+  const [optionsLoading, setOptionsLoading] = useState(true)
+
+  useEffect(() => {
+    apiClient.get<ApiResponse<ReferenceOptions>>('/reference/options')
+      .then((resp) => {
+        if (resp.data.data) {
+          setOptions(resp.data.data)
+        }
+      })
+      .finally(() => setOptionsLoading(false))
+  }, [])
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleChange = (field: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (field: 'username' | 'email' | 'password' | 'display_name') => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }))
+  }
+
+  const togglePlant = (plantId: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      plant_ids: prev.plant_ids.includes(plantId)
+        ? prev.plant_ids.filter((id) => id !== plantId)
+        : [...prev.plant_ids, plantId],
+    }))
+  }
+
+  const toggleProcess = (processId: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      process_ids: prev.process_ids.includes(processId)
+        ? prev.process_ids.filter((id) => id !== processId)
+        : [...prev.process_ids, processId],
+    }))
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -131,6 +178,40 @@ export function RegisterPage() {
                 onChange={handleChange('password')}
               />
             </div>
+
+            {!optionsLoading && (
+              <>
+                <div className="space-y-2">
+                  <Label>Plant (select your assigned plants)</Label>
+                  <div className="grid grid-cols-2 gap-2 p-3 border rounded-md max-h-32 overflow-y-auto">
+                    {options.plants.map((plant) => (
+                      <label key={plant.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={formData.plant_ids.includes(plant.id)}
+                          onCheckedChange={() => togglePlant(plant.id)}
+                        />
+                        {plant.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Process (select your assigned processes)</Label>
+                  <div className="grid grid-cols-2 gap-2 p-3 border rounded-md max-h-32 overflow-y-auto">
+                    {options.processes.map((process) => (
+                      <label key={process.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={formData.process_ids.includes(process.id)}
+                          onCheckedChange={() => toggleProcess(process.id)}
+                        />
+                        {process.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
 
           <CardFooter className="flex flex-col gap-3">

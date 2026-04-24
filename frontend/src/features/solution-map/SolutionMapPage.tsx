@@ -71,6 +71,7 @@ export function SolutionMapPage() {
                 lines={data.lines}
                 statuses={data.filters.statuses}
                 canEdit={canEdit}
+                user={user}
               />
             </div>
 

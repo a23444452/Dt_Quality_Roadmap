@@ -1,10 +1,26 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.models.base import TimestampMixin
+
+
+# Association tables for many-to-many relationships
+user_plants = Table(
+    "user_plants",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("plant_id", Integer, ForeignKey("plant.id", ondelete="CASCADE"), primary_key=True),
+)
+
+user_processes = Table(
+    "user_processes",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("process_id", Integer, ForeignKey("process.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class User(TimestampMixin, Base):
@@ -20,3 +36,12 @@ class User(TimestampMixin, Base):
     reset_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
     reset_token_expires: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Many-to-many relationships
+    plants: Mapped[list["Plant"]] = relationship(secondary=user_plants, lazy="selectin")
+    processes: Mapped[list["Process"]] = relationship(secondary=user_processes, lazy="selectin")
+
+
+# Import at end to avoid circular imports
+from app.models.plant import Plant  # noqa: E402, F401
+from app.models.process import Process  # noqa: E402, F401

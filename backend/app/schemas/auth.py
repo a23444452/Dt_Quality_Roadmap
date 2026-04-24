@@ -11,6 +11,8 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     display_name: str
+    plant_ids: list[int] = []
+    process_ids: list[int] = []
 
     @field_validator("password")
     @classmethod
@@ -32,11 +34,23 @@ class TokenResponse(BaseModel):
     expires_in: int
 
 
+class PlantInfo(BaseModel):
+    id: int
+    name: str
+
+
+class ProcessInfo(BaseModel):
+    id: int
+    name: str
+
+
 class UserInfo(BaseModel):
     id: int
     username: str
     display_name: str
     role: str
+    plants: list[PlantInfo] = []
+    processes: list[ProcessInfo] = []
 
 
 class LoginResponse(BaseModel):

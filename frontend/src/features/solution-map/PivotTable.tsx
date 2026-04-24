@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -9,12 +9,14 @@ import { StatusBadge } from '@/components/charts/StatusBadge'
 import { StatusCellEditor } from './StatusCellEditor'
 import type { SolutionRow, LineColumn, SolutionMapStatus } from '@/types/solution-map'
 import type { Status } from '@/types/reference-data'
+import type { User } from '@/types/auth'
 
 interface PivotTableProps {
   solutions: SolutionRow[]
   lines: LineColumn[]
   statuses: Status[]
   canEdit: boolean
+  user: User | null
 }
 
 interface CellSelection {
@@ -29,8 +31,23 @@ function getStatusColor(statuses: Status[], code: string): string {
   return statuses.find((s) => s.code === code)?.color ?? '#6b7280'
 }
 
-export function PivotTable({ solutions, lines, statuses, canEdit }: PivotTableProps) {
+export function PivotTable({ solutions, lines, statuses, canEdit, user }: PivotTableProps) {
   const [selected, setSelected] = useState<CellSelection | null>(null)
+
+  // Check if user can edit a specific cell based on their assigned plants and processes
+  const canEditCell = useCallback((solution: SolutionRow, line: LineColumn): boolean => {
+    if (!canEdit || !user) return false
+    if (user.role === 'admin') return true
+
+    // Editor can only edit if they have access to both the process and plant
+    const userProcessNames = user.processes?.map((p) => p.name) ?? []
+    const userPlantNames = user.plants?.map((p) => p.name) ?? []
+
+    const hasProcessAccess = userProcessNames.includes(solution.process)
+    const hasPlantAccess = userPlantNames.includes(line.plant)
+
+    return hasProcessAccess && hasPlantAccess
+  }, [canEdit, user])
 
   const columns = useMemo(() => {
     const infoColumns = [
@@ -105,7 +122,7 @@ export function PivotTable({ solutions, lines, statuses, canEdit }: PivotTablePr
   }, [lines])
 
   function handleCellClick(solution: SolutionRow, line: LineColumn) {
-    if (!canEdit) return
+    if (!canEditCell(solution, line)) return
     setSelected({
       solution,
       line,
@@ -163,12 +180,13 @@ export function PivotTable({ solutions, lines, statuses, canEdit }: PivotTablePr
                     const isLineCell = cell.column.id.startsWith('line_')
                     const lineKey = isLineCell ? cell.column.id.replace('line_', '') : null
                     const line = lineKey ? lines.find((l) => l.key === lineKey) : null
+                    const cellEditable = isLineCell && line && canEditCell(row.original, line)
 
                     return (
                       <td
                         key={cell.id}
                         className={`border border-gray-200 px-2 py-1 ${
-                          isLineCell && canEdit
+                          cellEditable
                             ? 'cursor-pointer hover:bg-blue-50 transition-colors'
                             : ''
                         }`}
@@ -176,8 +194,10 @@ export function PivotTable({ solutions, lines, statuses, canEdit }: PivotTablePr
                           if (isLineCell && line) handleCellClick(row.original, line)
                         }}
                         title={
-                          isLineCell && canEdit
+                          cellEditable
                             ? `Click to edit ${row.original.name} × ${line?.name}`
+                            : isLineCell && canEdit && !cellEditable
+                            ? 'No permission to edit this cell'
                             : undefined
                         }
                       >

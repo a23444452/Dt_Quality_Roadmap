@@ -5,9 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, require_role
+from app.models.plant import Plant
+from app.models.process import Process
 from app.models.user import User
 from app.schemas.common import ok
-from app.schemas.user import UserApproveRequest, UserRejectRequest, UserResponse
+from app.schemas.user import UserApproveRequest, UserRejectRequest, UserResponse, UserUpdateRequest
 from app.utils.security import hash_password
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
@@ -37,6 +39,45 @@ def list_users(
     )
 
 
+@router.get("/{user_id}")
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return ok(UserResponse.model_validate(user).model_dump())
+
+
+@router.put("/{user_id}")
+def update_user(
+    user_id: int,
+    body: UserUpdateRequest,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if body.role is not None:
+        user.role = body.role
+
+    if body.plant_ids is not None:
+        plants = db.query(Plant).filter(Plant.id.in_(body.plant_ids)).all()
+        user.plants = plants
+
+    if body.process_ids is not None:
+        processes = db.query(Process).filter(Process.id.in_(body.process_ids)).all()
+        user.processes = processes
+
+    db.commit()
+    db.refresh(user)
+    return ok(UserResponse.model_validate(user).model_dump())
+
+
 @router.put("/{user_id}/approve")
 def approve_user(
     user_id: int,
@@ -49,6 +90,17 @@ def approve_user(
         raise HTTPException(status_code=404, detail="User not found")
     user.status = "active"
     user.role = body.role
+
+    # Update plants if provided (otherwise keep what user selected during registration)
+    if body.plant_ids is not None:
+        plants = db.query(Plant).filter(Plant.id.in_(body.plant_ids)).all()
+        user.plants = plants
+
+    # Update processes if provided (otherwise keep what user selected during registration)
+    if body.process_ids is not None:
+        processes = db.query(Process).filter(Process.id.in_(body.process_ids)).all()
+        user.processes = processes
+
     db.commit()
     db.refresh(user)
     return ok(UserResponse.model_validate(user).model_dump())

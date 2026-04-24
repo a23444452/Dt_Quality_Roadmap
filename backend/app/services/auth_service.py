@@ -3,6 +3,8 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.models.plant import Plant
+from app.models.process import Process
 from app.models.user import User
 from app.utils.security import hash_password, verify_password
 
@@ -17,7 +19,13 @@ def authenticate_user(db: Session, username: str, password: str) -> User | None:
 
 
 def register_user(
-    db: Session, username: str, email: str, password: str, display_name: str
+    db: Session,
+    username: str,
+    email: str,
+    password: str,
+    display_name: str,
+    plant_ids: list[int] | None = None,
+    process_ids: list[int] | None = None,
 ) -> User:
     user = User(
         username=username,
@@ -27,6 +35,17 @@ def register_user(
         role="viewer",
         status="pending",
     )
+
+    # Add plant associations
+    if plant_ids:
+        plants = db.query(Plant).filter(Plant.id.in_(plant_ids)).all()
+        user.plants = plants
+
+    # Add process associations
+    if process_ids:
+        processes = db.query(Process).filter(Process.id.in_(process_ids)).all()
+        user.processes = processes
+
     db.add(user)
     db.commit()
     db.refresh(user)

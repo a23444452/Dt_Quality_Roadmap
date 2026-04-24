@@ -1,8 +1,20 @@
+export interface PlantRef {
+  id: number
+  name: string
+}
+
+export interface ProcessRef {
+  id: number
+  name: string
+}
+
 export interface User {
   id: number
   username: string
   display_name: string
   role: 'viewer' | 'editor' | 'admin'
+  plants: PlantRef[]
+  processes: ProcessRef[]
 }
 
 export interface LoginRequest {
@@ -15,6 +27,8 @@ export interface RegisterRequest {
   email: string
   password: string
   display_name: string
+  plant_ids: number[]
+  process_ids: number[]
 }
 
 export interface LoginResponse {

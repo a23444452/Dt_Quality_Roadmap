@@ -22,11 +22,11 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
+  { label: 'Process Map', icon: GitBranch, to: '/process-map' },
   { label: 'Dashboard', icon: LayoutDashboard, to: '/' },
   { label: 'Solution Map', icon: Grid3X3, to: '/solution-map' },
-  { label: 'Process Map', icon: GitBranch, to: '/process-map' },
-  { label: 'Data Management', icon: Database, to: '/data-management' },
   { label: 'Process Analysis', icon: Activity, to: '/analysis/process' },
+  { label: 'Data Management', icon: Database, to: '/data-management' },
 ]
 
 const adminNavItems: NavItem[] = [

@@ -124,8 +124,8 @@ export function ProcessMapPage() {
         </div>
 
         {/* Process Map Image with Hotspots */}
-        <div className="rounded-lg border bg-white p-4 overflow-auto">
-          <div className="relative inline-block min-w-[900px]">
+        <div className="rounded-lg border bg-white p-4 overflow-auto flex justify-center">
+          <div className="relative inline-block min-w-[1100px]">
             <img
               src="/process-map.jpg"
               alt="Process Map"

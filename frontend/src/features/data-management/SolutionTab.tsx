@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
+import { useAuth } from '@/features/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -68,11 +69,16 @@ const EMPTY_FORM: SolutionForm = { name: '', defect_type_id: '', station_id: '',
 
 export function SolutionTab() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Solution | null>(null)
   const [form, setForm] = useState<SolutionForm>(EMPTY_FORM)
   const [deleteTarget, setDeleteTarget] = useState<Solution | null>(null)
+
+  const userProcessIds = useMemo(() => new Set(user?.processes?.map(p => p.id) ?? []), [user])
+  const isAdmin = user?.role === 'admin'
+  const isEditor = user?.role === 'editor'
 
   const { data: defectCategories } = useQuery({
     queryKey: ['defect-categories'],
@@ -110,6 +116,14 @@ export function SolutionTab() {
   const defectCategoryMap = new Map(defectCategories?.map(c => [c.id, c]) ?? [])
   const stationMap = new Map(stations?.map(s => [s.id, s]) ?? [])
   const processMap = new Map(processes?.map(p => [p.id, p]) ?? [])
+
+  const canAdd = isAdmin || (isEditor && userProcessIds.size > 0)
+  const canEditSolution = useCallback((solution: Solution) => {
+    if (isAdmin) return true
+    if (!isEditor) return false
+    const station = stationMap.get(solution.station_id)
+    return station ? userProcessIds.has(station.process_id) : false
+  }, [isAdmin, isEditor, stationMap, userProcessIds])
 
   const { data, isLoading } = useQuery({
     queryKey: ['solutions', search],
@@ -181,7 +195,7 @@ export function SolutionTab() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
-        <Button onClick={openCreate}>Add Solution</Button>
+        {canAdd && <Button onClick={openCreate}>Add Solution</Button>}
       </div>
 
       {isLoading ? (
@@ -226,17 +240,19 @@ export function SolutionTab() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>Edit</Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteTarget(s)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
+                        {canEditSolution(s) && (
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>Edit</Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteTarget(s)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   )

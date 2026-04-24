@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
+import { useAuth } from '@/features/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -47,11 +48,18 @@ const EMPTY_FORM: StationForm = { name: '', process_id: '', description: '', sor
 
 export function StationTab() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Station | null>(null)
   const [form, setForm] = useState<StationForm>(EMPTY_FORM)
   const [deleteTarget, setDeleteTarget] = useState<Station | null>(null)
+
+  const userProcessIds = useMemo(() => new Set(user?.processes?.map(p => p.id) ?? []), [user])
+  const isAdmin = user?.role === 'admin'
+  const isEditor = user?.role === 'editor'
+  const canAdd = isAdmin || (isEditor && userProcessIds.size > 0)
+  const canEditStation = (station: Station) => isAdmin || (isEditor && userProcessIds.has(station.process_id))
 
   const { data: processes } = useQuery({
     queryKey: ['processes'],
@@ -115,7 +123,7 @@ export function StationTab() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
-        <Button onClick={openCreate}>Add Station</Button>
+        {canAdd && <Button onClick={openCreate}>Add Station</Button>}
       </div>
 
       {isLoading ? (
@@ -165,17 +173,19 @@ export function StationTab() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>Edit</Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteTarget(s)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
+                        {canEditStation(s) && (
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>Edit</Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteTarget(s)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   )

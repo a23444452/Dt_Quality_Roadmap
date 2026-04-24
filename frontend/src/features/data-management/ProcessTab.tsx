@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
+import { useAuth } from '@/features/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -43,11 +44,18 @@ const PROCESS_CATEGORIES = ['Melting', 'Finishing', 'System']
 
 export function ProcessTab() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Process | null>(null)
   const [form, setForm] = useState<ProcessForm>(EMPTY_FORM)
   const [deleteTarget, setDeleteTarget] = useState<Process | null>(null)
+
+  const userProcessIds = useMemo(() => new Set(user?.processes?.map(p => p.id) ?? []), [user])
+  const isAdmin = user?.role === 'admin'
+  const isEditor = user?.role === 'editor'
+  const canAdd = isAdmin || (isEditor && userProcessIds.size > 0)
+  const canEditProcess = (process: Process) => isAdmin || (isEditor && userProcessIds.has(process.id))
 
   const { data, isLoading } = useQuery({
     queryKey: ['processes'],
@@ -97,7 +105,7 @@ export function ProcessTab() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
-        <Button onClick={openCreate}>Add Process</Button>
+        {canAdd && <Button onClick={openCreate}>Add Process</Button>}
       </div>
 
       {isLoading ? (
@@ -143,17 +151,19 @@ export function ProcessTab() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>Edit</Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setDeleteTarget(p)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
+                      {canEditProcess(p) && (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>Edit</Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget(p)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

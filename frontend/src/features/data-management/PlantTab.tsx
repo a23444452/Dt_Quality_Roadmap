@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
+import { useAuth } from '@/features/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -38,11 +39,18 @@ const EMPTY_FORM: PlantForm = { name: '', code: '', sort_order: 0, is_active: tr
 
 export function PlantTab() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Plant | null>(null)
   const [form, setForm] = useState<PlantForm>(EMPTY_FORM)
   const [deleteTarget, setDeleteTarget] = useState<Plant | null>(null)
+
+  const userPlantIds = useMemo(() => new Set(user?.plants?.map(p => p.id) ?? []), [user])
+  const isAdmin = user?.role === 'admin'
+  const isEditor = user?.role === 'editor'
+  const canAdd = isAdmin || (isEditor && userPlantIds.size > 0)
+  const canEditPlant = (plant: Plant) => isAdmin || (isEditor && userPlantIds.has(plant.id))
 
   const { data, isLoading } = useQuery({
     queryKey: ['plants'],
@@ -92,7 +100,7 @@ export function PlantTab() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
-        <Button onClick={openCreate}>Add Plant</Button>
+        {canAdd && <Button onClick={openCreate}>Add Plant</Button>}
       </div>
 
       {isLoading ? (
@@ -128,17 +136,19 @@ export function PlantTab() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>Edit</Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setDeleteTarget(p)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
+                      {canEditPlant(p) && (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>Edit</Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget(p)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

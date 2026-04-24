@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
+import { useAuth } from '@/features/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -46,11 +47,14 @@ const EMPTY_FORM: DefectTypeForm = { category_id: '', name: '', description: '',
 
 export function DefectTypeTab() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<DefectType | null>(null)
   const [form, setForm] = useState<DefectTypeForm>(EMPTY_FORM)
   const [deleteTarget, setDeleteTarget] = useState<DefectType | null>(null)
+
+  const isAdmin = user?.role === 'admin'
 
   const { data: categories } = useQuery({
     queryKey: ['defect-categories'],
@@ -114,7 +118,7 @@ export function DefectTypeTab() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
-        <Button onClick={openCreate}>Add Defect Type</Button>
+        {isAdmin && <Button onClick={openCreate}>Add Defect Type</Button>}
       </div>
 
       {isLoading ? (
@@ -154,17 +158,19 @@ export function DefectTypeTab() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(d)}>Edit</Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteTarget(d)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
+                        {isAdmin && (
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(d)}>Edit</Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteTarget(d)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   )

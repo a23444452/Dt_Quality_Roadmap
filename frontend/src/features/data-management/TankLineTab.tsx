@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
+import { useAuth } from '@/features/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -48,11 +49,18 @@ interface Plant {
 
 export function TankLineTab() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<TankLine | null>(null)
   const [form, setForm] = useState<TankLineForm>(EMPTY_FORM)
   const [deleteTarget, setDeleteTarget] = useState<TankLine | null>(null)
+
+  const userPlantIds = useMemo(() => new Set(user?.plants?.map(p => p.id) ?? []), [user])
+  const isAdmin = user?.role === 'admin'
+  const isEditor = user?.role === 'editor'
+  const canAdd = isAdmin || (isEditor && userPlantIds.size > 0)
+  const canEditTankLine = (tankLine: TankLine) => isAdmin || (isEditor && userPlantIds.has(tankLine.plant_id))
 
   const { data: plants } = useQuery({
     queryKey: ['plants'],
@@ -114,7 +122,7 @@ export function TankLineTab() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
-        <Button onClick={openCreate}>Add Tank Line</Button>
+        {canAdd && <Button onClick={openCreate}>Add Tank Line</Button>}
       </div>
 
       {isLoading ? (
@@ -150,17 +158,19 @@ export function TankLineTab() {
                     </TableCell>
                     <TableCell>{plantMap.get(t.plant_id)?.name ?? `Plant #${t.plant_id}`}</TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(t)}>Edit</Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setDeleteTarget(t)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
+                      {canEditTankLine(t) && (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(t)}>Edit</Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget(t)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

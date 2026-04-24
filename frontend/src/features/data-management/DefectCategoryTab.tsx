@@ -8,6 +8,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface DefectCategory {
   id: number
@@ -32,6 +42,7 @@ export function DefectCategoryTab() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<DefectCategory | null>(null)
   const [form, setForm] = useState<DefectCategoryForm>(EMPTY_FORM)
+  const [deleteTarget, setDeleteTarget] = useState<DefectCategory | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['defect-categories'],
@@ -54,7 +65,7 @@ export function DefectCategoryTab() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiClient.delete(`/defect-categories/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['defect-categories'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['defect-categories'] }); setDeleteTarget(null) },
   })
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setOpen(true) }
@@ -122,7 +133,7 @@ export function DefectCategoryTab() {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => deleteMutation.mutate(c.id)}
+                          onClick={() => setDeleteTarget(c)}
                         >
                           Delete
                         </Button>
@@ -184,6 +195,26 @@ export function DefectCategoryTab() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Delete</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteTarget?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

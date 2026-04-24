@@ -125,6 +125,13 @@ export function SolutionTab() {
     return station ? userProcessIds.has(station.process_id) : false
   }, [isAdmin, isEditor, stationMap, userProcessIds])
 
+  // Filter stations based on user's process permissions (for Add/Edit dropdown)
+  const allowedStations = useMemo(() => {
+    if (!stations) return []
+    if (isAdmin) return stations
+    return stations.filter(s => userProcessIds.has(s.process_id))
+  }, [stations, isAdmin, userProcessIds])
+
   const { data, isLoading } = useQuery({
     queryKey: ['solutions', search],
     queryFn: async () => {
@@ -308,7 +315,7 @@ export function SolutionTab() {
                   <SelectValue placeholder="Select station" />
                 </SelectTrigger>
                 <SelectContent>
-                  {stations?.map((s) => {
+                  {allowedStations.map((s) => {
                     const proc = processMap.get(s.process_id)
                     return (
                       <SelectItem key={s.id} value={String(s.id)}>

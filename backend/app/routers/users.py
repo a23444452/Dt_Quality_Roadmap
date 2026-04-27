@@ -10,6 +10,7 @@ from app.models.process import Process
 from app.models.user import User
 from app.schemas.common import ok
 from app.schemas.user import UserApproveRequest, UserRejectRequest, UserResponse, UserUpdateRequest
+from app.utils.email import send_user_approved_notification, send_user_rejected_notification
 from app.utils.security import hash_password
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
@@ -113,6 +114,15 @@ def approve_user(
 
     db.commit()
     db.refresh(user)
+
+    # Send approval notification to user
+    if user.email:
+        send_user_approved_notification(
+            user_email=user.email,
+            username=user.username,
+            display_name=user.display_name,
+        )
+
     return ok(UserResponse.model_validate(user).model_dump())
 
 
@@ -129,6 +139,16 @@ def reject_user(
     user.status = "rejected"
     db.commit()
     db.refresh(user)
+
+    # Send rejection notification to user
+    if user.email:
+        send_user_rejected_notification(
+            user_email=user.email,
+            username=user.username,
+            display_name=user.display_name,
+            reason=body.reason,
+        )
+
     return ok(UserResponse.model_validate(user).model_dump())
 
 

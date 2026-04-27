@@ -110,17 +110,17 @@ export function UserManagementPage() {
   })
 
   const rejectMutation = useMutation({
-    mutationFn: (id: number) => apiClient.post(`/users/${id}/reject`),
+    mutationFn: (id: number) => apiClient.put(`/users/${id}/reject`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   })
 
   const disableMutation = useMutation({
-    mutationFn: (id: number) => apiClient.post(`/users/${id}/disable`),
+    mutationFn: (id: number) => apiClient.put(`/users/${id}/disable`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   })
 
   const resetPasswordMutation = useMutation({
-    mutationFn: (id: number) => apiClient.post(`/users/${id}/reset-password`),
+    mutationFn: (id: number) => apiClient.put(`/users/${id}/reset-password`),
   })
 
   const pendingCount = (users ?? []).filter((u) => u.status === 'pending').length

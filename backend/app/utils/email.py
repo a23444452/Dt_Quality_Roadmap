@@ -95,3 +95,80 @@ def send_new_user_registration_notification(
     </html>
     """
     return send_email(admin_emails, subject, body)
+
+
+def send_user_approved_notification(user_email: str, username: str, display_name: str) -> bool:
+    """Send notification to user when their registration is approved."""
+    base_url = settings.app_base_url.rstrip("/")
+    subject = "[D^t Roadmap] 您的帳號已通過審核"
+    body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            h2 {{ color: #16a34a; }}
+            .info {{ background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #16a34a; }}
+            .info p {{ margin: 5px 0; }}
+            .btn {{ display: inline-block; background: #16a34a; color: white; padding: 10px 20px;
+                    text-decoration: none; border-radius: 5px; margin-top: 15px; }}
+            .btn:hover {{ background: #15803d; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>✓ 帳號審核通過</h2>
+            <p>親愛的 {display_name}，</p>
+            <p>恭喜！您的 D^t Solution Roadmap 帳號已通過審核，現在可以登入系統。</p>
+            <div class="info">
+                <p><strong>帳號：</strong>{username}</p>
+            </div>
+            <a href="{base_url}/login" class="btn">立即登入</a>
+            <p style="margin-top: 20px; color: #666; font-size: 14px;">
+                如有任何問題，請聯繫系統管理員。
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email([user_email], subject, body)
+
+
+def send_user_rejected_notification(
+    user_email: str, username: str, display_name: str, reason: str | None = None
+) -> bool:
+    """Send notification to user when their registration is rejected."""
+    reason_text = f"<p><strong>拒絕原因：</strong>{reason}</p>" if reason else ""
+    subject = "[D^t Roadmap] 您的帳號註冊未通過"
+    body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            h2 {{ color: #dc2626; }}
+            .info {{ background: #fef2f2; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #dc2626; }}
+            .info p {{ margin: 5px 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>✗ 帳號註冊未通過</h2>
+            <p>親愛的 {display_name}，</p>
+            <p>很抱歉，您的 D^t Solution Roadmap 帳號註冊申請未通過審核。</p>
+            <div class="info">
+                <p><strong>帳號：</strong>{username}</p>
+                {reason_text}
+            </div>
+            <p style="margin-top: 20px; color: #666; font-size: 14px;">
+                如有疑問，請聯繫系統管理員了解詳情。
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email([user_email], subject, body)

@@ -57,6 +57,8 @@
 
 ### Admin 管理後台
 - **用戶管理** — 審核新用戶註冊 (Approve/Reject)、停用帳號、重設密碼
+- **待審核提醒** — Sidebar 的 User Management 旁顯示待審核用戶數量 Badge
+- **Email 通知** — 新用戶註冊時自動發送 Email 通知給所有 Admin
 - **系統設定** — 管理狀態定義 (Status Definition) 的名稱、色碼
 
 ### 身份驗證與授權
@@ -999,10 +1001,12 @@ docker-compose exec backend python -m app.seed
 | `JWT_SECRET` | JWT 簽署金鑰 (至少 64 字元) | `change-me` |
 | `JWT_EXPIRY_HOURS` | Access Token 有效時數 | `8` |
 | `CORS_ORIGINS` | 允許的前端來源 (逗號分隔) | `http://localhost:5173` |
-| `SMTP_HOST` | SMTP 郵件伺服器 | (空) |
+| `APP_BASE_URL` | 前端網址 (用於 Email 連結) | `http://localhost:5173` |
+| `SMTP_HOST` | SMTP 郵件伺服器 (空白則使用 Corning 內部 SMTP) | (空) |
 | `SMTP_PORT` | SMTP 埠號 | `587` |
-| `SMTP_USER` | SMTP 帳號 | (空) |
-| `SMTP_PASSWORD` | SMTP 密碼 | (空) |
+| `SMTP_USER` | SMTP 帳號 (外部 SMTP 用) | (空) |
+| `SMTP_PASSWORD` | SMTP 密碼 (外部 SMTP 用) | (空) |
+| `SMTP_SENDER` | Email 寄件者地址 | `DtRoadmap@corning.com` |
 | `GUNICORN_WORKERS` | Worker 進程數量 | CPU核心數 × 2 + 1 |
 | `GUNICORN_TIMEOUT` | 請求超時時間 (秒) | `120` |
 | `GUNICORN_LOG_LEVEL` | 日誌等級 (debug/info/warning/error) | `info` |
@@ -1014,6 +1018,54 @@ docker-compose exec backend python -m app.seed
 ```
 DATABASE_URL=mssql+pymssql://username:password@host:1433/database_name
 ```
+
+### Email 通知設定
+
+當新使用者註冊時，系統會自動發送 Email 通知給所有 Admin。
+
+#### Corning 內部網路（推薦）
+
+在 Corning 內部網路部署時，系統會自動使用 `smtphub.corning.com:25`，**不需要設定任何 SMTP 參數**。
+
+只需設定以下環境變數：
+
+```env
+# backend/.env
+
+# 前端網址（用於 Email 中的連結）
+APP_BASE_URL=http://192.168.x.x
+
+# 自訂寄件者 Email（選填，預設為 DtRoadmap@corning.com）
+SMTP_SENDER=yourname@corning.com
+```
+
+#### 外部 SMTP 伺服器
+
+若部署在 Corning 網路外部，需設定完整的 SMTP 參數：
+
+```env
+# backend/.env
+
+APP_BASE_URL=https://your-domain.com
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=noreply@example.com
+SMTP_PASSWORD=your-password
+SMTP_SENDER=noreply@example.com
+```
+
+#### 通知設定說明
+
+| 設定項目 | 說明 |
+|---------|------|
+| `APP_BASE_URL` | Email 中「前往 User Management」按鈕的連結網址 |
+| `SMTP_SENDER` | Email 顯示的寄件者地址，Admin 回信會寄到此地址 |
+| `SMTP_HOST` | 留空則自動使用 Corning 內部 SMTP（`smtphub.corning.com`） |
+
+#### 通知觸發時機
+
+1. **新用戶註冊** — 發送 Email 給所有 Active 狀態的 Admin
+2. **Sidebar Badge** — Admin 登入後，User Management 旁會顯示待審核人數（每分鐘刷新）
 
 ---
 

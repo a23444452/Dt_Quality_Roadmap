@@ -22,6 +22,7 @@ from app.services.auth_service import (
     register_user,
     reset_password,
 )
+from app.utils.email import send_new_user_registration_notification
 from app.utils.security import (
     create_access_token,
     create_refresh_token,
@@ -81,6 +82,20 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         )
     except IntegrityError:
         raise HTTPException(status_code=409, detail="Username or email already exists")
+
+    # Send email notification to all active admins
+    admin_emails = [
+        u.email
+        for u in db.query(User).filter(User.role == "admin", User.status == "active").all()
+        if u.email
+    ]
+    if admin_emails:
+        send_new_user_registration_notification(
+            admin_emails=admin_emails,
+            username=user.username,
+            display_name=user.display_name,
+            email=user.email,
+        )
 
     return ok(
         {

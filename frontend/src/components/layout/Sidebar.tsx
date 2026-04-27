@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard,
   Grid3X3,
@@ -13,12 +14,16 @@ import {
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/features/auth/AuthContext'
+import apiClient from '@/lib/api-client'
+import type { ApiResponse } from '@/types/api'
 
 interface NavItem {
   label: string
   icon: React.ElementType
   to: string
+  badge?: number
 }
 
 const mainNavItems: NavItem[] = [
@@ -27,11 +32,6 @@ const mainNavItems: NavItem[] = [
   { label: 'Solution Map', icon: Grid3X3, to: '/solution-map' },
   { label: 'Process Analysis', icon: Activity, to: '/analysis/process' },
   { label: 'Data Management', icon: Database, to: '/data-management' },
-]
-
-const adminNavItems: NavItem[] = [
-  { label: 'User Management', icon: Users, to: '/admin/users' },
-  { label: 'Settings', icon: Settings, to: '/admin/settings' },
 ]
 
 interface SidebarNavItemProps {
@@ -61,12 +61,17 @@ function SidebarNavItem({ item, collapsed, isExact = false }: SidebarNavItemProp
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <NavLink to={item.to} className={linkClasses}>
+          <NavLink to={item.to} className={`${linkClasses} relative`}>
             <Icon size={20} className="shrink-0" />
+            {item.badge !== undefined && item.badge > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                {item.badge > 9 ? '9+' : item.badge}
+              </span>
+            )}
           </NavLink>
         </TooltipTrigger>
         <TooltipContent side="right">
-          <p>{item.label}</p>
+          <p>{item.label}{item.badge ? ` (${item.badge})` : ''}</p>
         </TooltipContent>
       </Tooltip>
     )
@@ -76,6 +81,11 @@ function SidebarNavItem({ item, collapsed, isExact = false }: SidebarNavItemProp
     <NavLink to={item.to} className={linkClasses}>
       <Icon size={20} className="shrink-0" />
       <span className="truncate">{item.label}</span>
+      {item.badge !== undefined && item.badge > 0 && (
+        <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5">
+          {item.badge}
+        </Badge>
+      )}
     </NavLink>
   )
 }
@@ -85,6 +95,24 @@ export function Sidebar() {
   const { user } = useAuth()
 
   const isAdmin = user?.role === 'admin'
+
+  // Fetch pending users count for admin badge
+  const { data: pendingCount } = useQuery({
+    queryKey: ['pending-users-count'],
+    queryFn: async () => {
+      const resp = await apiClient.get<ApiResponse<{ count: number }>>('/users/pending-count')
+      return resp.data.data?.count ?? 0
+    },
+    enabled: isAdmin,
+    refetchInterval: 60000, // Refresh every minute
+    staleTime: 30000,
+  })
+
+  // Build admin nav items with pending count badge
+  const adminNavItemsWithBadge: NavItem[] = [
+    { label: 'User Management', icon: Users, to: '/admin/users', badge: pendingCount },
+    { label: 'Settings', icon: Settings, to: '/admin/settings' },
+  ]
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -125,7 +153,7 @@ export function Sidebar() {
                   Admin
                 </p>
               )}
-              {adminNavItems.map((item) => (
+              {adminNavItemsWithBadge.map((item) => (
                 <SidebarNavItem key={item.to} item={item} collapsed={collapsed} />
               ))}
             </>

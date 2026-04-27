@@ -7,10 +7,12 @@ class Settings(BaseSettings):
     jwt_expiry_hours: int = 8
     jwt_refresh_expiry_days: int = 7
     cors_origins: str = "http://localhost:5173"
-    smtp_host: str = ""
+    app_base_url: str = "http://localhost:5173"  # Frontend URL for email links
+    smtp_host: str = ""  # Leave empty to use Corning internal SMTP (smtphub.corning.com)
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
+    smtp_sender: str = ""  # Email sender address (default: DtRoadmap@corning.com)
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

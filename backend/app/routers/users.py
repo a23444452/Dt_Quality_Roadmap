@@ -15,6 +15,16 @@ from app.utils.security import hash_password
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
 
+@router.get("/pending-count")
+def get_pending_count(
+    db: Session = Depends(get_db),
+    _=Depends(require_role("admin")),
+):
+    """Get the count of users with pending status (awaiting approval)."""
+    count = db.query(User).filter(User.status == "pending").count()
+    return ok({"count": count})
+
+
 @router.get("")
 def list_users(
     status: str | None = None,

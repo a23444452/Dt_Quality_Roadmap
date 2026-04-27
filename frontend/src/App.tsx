@@ -38,9 +38,9 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
+        <Route index element={<ProcessMapPage />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="solution-map" element={<SolutionMapPage />} />
-        <Route path="process-map" element={<ProcessMapPage />} />
         <Route path="data-management" element={<DataManagementPage />} />
         <Route path="analysis/process" element={<ProcessAnalysisPage />} />
         <Route path="profile" element={<ProfilePage />} />

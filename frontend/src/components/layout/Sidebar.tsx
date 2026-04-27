@@ -22,8 +22,8 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { label: 'Process Map', icon: GitBranch, to: '/process-map' },
-  { label: 'Dashboard', icon: LayoutDashboard, to: '/' },
+  { label: 'Process Map', icon: GitBranch, to: '/' },
+  { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
   { label: 'Solution Map', icon: Grid3X3, to: '/solution-map' },
   { label: 'Process Analysis', icon: Activity, to: '/analysis/process' },
   { label: 'Data Management', icon: Database, to: '/data-management' },

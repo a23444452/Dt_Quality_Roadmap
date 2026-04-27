@@ -161,6 +161,14 @@ def disable_user(
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Release username and email by appending suffix (allows re-registration)
+    disabled_suffix = f"_disabled_{user.id}"
+    if not user.username.endswith(disabled_suffix):
+        user.username = f"{user.username}{disabled_suffix}"
+    if not user.email.endswith(disabled_suffix):
+        user.email = f"{user.email}{disabled_suffix}"
+
     user.status = "disabled"
     db.commit()
     db.refresh(user)

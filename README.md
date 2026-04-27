@@ -1037,6 +1037,10 @@ APP_BASE_URL=http://192.168.x.x
 
 # 自訂寄件者 Email（選填，預設為 DtRoadmap@corning.com）
 SMTP_SENDER=yourname@corning.com
+
+# Admin 通知收件者（逗號分隔，可設定多個）
+# 留空則自動從資料庫查詢所有 Active Admin 的 email
+ADMIN_NOTIFICATION_EMAILS=admin1@corning.com,admin2@corning.com
 ```
 
 #### 外部 SMTP 伺服器
@@ -1061,6 +1065,7 @@ SMTP_SENDER=noreply@example.com
 | `APP_BASE_URL` | Email 中「前往 User Management」按鈕的連結網址 |
 | `SMTP_SENDER` | Email 顯示的寄件者地址，Admin 回信會寄到此地址 |
 | `SMTP_HOST` | 留空則自動使用 Corning 內部 SMTP（`smtphub.corning.com`） |
+| `ADMIN_NOTIFICATION_EMAILS` | 收件者 Email（逗號分隔），留空則從 DB 查詢 Admin |
 
 #### 通知觸發時機
 

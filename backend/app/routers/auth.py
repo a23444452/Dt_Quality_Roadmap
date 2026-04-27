@@ -83,12 +83,16 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     except IntegrityError:
         raise HTTPException(status_code=409, detail="Username or email already exists")
 
-    # Send email notification to all active admins
-    admin_emails = [
-        u.email
-        for u in db.query(User).filter(User.role == "admin", User.status == "active").all()
-        if u.email
-    ]
+    # Send email notification to admins
+    # Priority: 1) ADMIN_NOTIFICATION_EMAILS from .env, 2) Query from database
+    if settings.admin_notification_emails:
+        admin_emails = [e.strip() for e in settings.admin_notification_emails.split(",") if e.strip()]
+    else:
+        admin_emails = [
+            u.email
+            for u in db.query(User).filter(User.role == "admin", User.status == "active").all()
+            if u.email
+        ]
     if admin_emails:
         send_new_user_registration_notification(
             admin_emails=admin_emails,

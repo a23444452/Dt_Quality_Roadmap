@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_sender: str = ""  # Email sender address (default: DtRoadmap@corning.com)
+    admin_notification_emails: str = ""  # Comma-separated admin emails for notifications (if empty, query from DB)
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

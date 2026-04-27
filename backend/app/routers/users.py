@@ -136,18 +136,27 @@ def reject_user(
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    user.status = "rejected"
-    db.commit()
-    db.refresh(user)
 
-    # Send rejection notification to user
-    if user.email:
+    # Send rejection notification BEFORE modifying email
+    original_email = user.email
+    if original_email and not original_email.endswith(f"_rejected_{user.id}"):
         send_user_rejected_notification(
-            user_email=user.email,
+            user_email=original_email,
             username=user.username,
             display_name=user.display_name,
             reason=body.reason,
         )
+
+    # Release username and email by appending suffix (allows re-registration)
+    rejected_suffix = f"_rejected_{user.id}"
+    if not user.username.endswith(rejected_suffix):
+        user.username = f"{user.username}{rejected_suffix}"
+    if not user.email.endswith(rejected_suffix):
+        user.email = f"{user.email}{rejected_suffix}"
+
+    user.status = "rejected"
+    db.commit()
+    db.refresh(user)
 
     return ok(UserResponse.model_validate(user).model_dump())
 

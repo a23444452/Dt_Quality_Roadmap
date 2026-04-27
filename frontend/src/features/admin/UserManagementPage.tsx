@@ -7,6 +7,16 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 
@@ -54,6 +64,7 @@ export function UserManagementPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [approvingUser, setApprovingUser] = useState<User | null>(null)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [disableTarget, setDisableTarget] = useState<User | null>(null)
   const [selectedRole, setSelectedRole] = useState<string>('viewer')
   const [selectedPlantIds, setSelectedPlantIds] = useState<number[]>([])
   const [selectedProcessIds, setSelectedProcessIds] = useState<number[]>([])
@@ -116,7 +127,11 @@ export function UserManagementPage() {
 
   const disableMutation = useMutation({
     mutationFn: (id: number) => apiClient.put(`/users/${id}/disable`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      qc.invalidateQueries({ queryKey: ['pending-users-count'] })
+      setDisableTarget(null)
+    },
   })
 
   const resetPasswordMutation = useMutation({
@@ -246,9 +261,8 @@ export function UserManagementPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-xs"
-                              onClick={() => disableMutation.mutate(u.id)}
-                              disabled={disableMutation.isPending}
+                              className="text-xs text-destructive"
+                              onClick={() => setDisableTarget(u)}
                             >
                               Disable
                             </Button>
@@ -428,6 +442,26 @@ export function UserManagementPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!disableTarget} onOpenChange={(open) => !open && setDisableTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>確認停用帳號</AlertDialogTitle>
+            <AlertDialogDescription>
+              確定要停用 <strong>{disableTarget?.display_name}</strong> 的帳號嗎？停用後該使用者將無法登入系統。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => disableTarget && disableMutation.mutate(disableTarget.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {disableMutation.isPending ? '停用中...' : '確定停用'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

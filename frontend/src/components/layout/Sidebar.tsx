@@ -11,6 +11,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  Mail,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
@@ -108,6 +109,16 @@ export function Sidebar() {
     staleTime: 30000,
   })
 
+  // Fetch system config for admin contact emails
+  const { data: systemConfig } = useQuery({
+    queryKey: ['system-config'],
+    queryFn: async () => {
+      const resp = await apiClient.get<ApiResponse<{ admin_emails: string[]; app_url: string }>>('/reference/system-config')
+      return resp.data.data ?? { admin_emails: [], app_url: '' }
+    },
+    staleTime: 300000, // Cache for 5 minutes
+  })
+
   // Build admin nav items with pending count badge
   const adminNavItemsWithBadge: NavItem[] = [
     { label: 'User Management', icon: Users, to: '/admin/users', badge: pendingCount },
@@ -159,6 +170,44 @@ export function Sidebar() {
             </>
           )}
         </nav>
+
+        {/* Admin Contact */}
+        {systemConfig?.admin_emails && systemConfig.admin_emails.length > 0 && (
+          <div className="border-t border-blue-800 px-3 py-3">
+            {collapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex justify-center">
+                    <Mail size={16} className="text-blue-400" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="font-medium">Admin Contact</p>
+                  {systemConfig.admin_emails.map((email) => (
+                    <p key={email} className="text-xs">{email}</p>
+                  ))}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-blue-400 flex items-center gap-1">
+                  <Mail size={12} />
+                  Admin Contact
+                </p>
+                {systemConfig.admin_emails.map((email) => (
+                  <a
+                    key={email}
+                    href={`mailto:${email}`}
+                    className="block text-xs text-blue-200 hover:text-white truncate"
+                    title={email}
+                  >
+                    {email}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Collapse toggle */}
         <div className="border-t border-blue-800 p-2">

@@ -131,7 +131,7 @@ export function RegisterPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="display_name">Display Name</Label>
+              <Label htmlFor="display_name">Name</Label>
               <Input
                 id="display_name"
                 type="text"
@@ -143,7 +143,7 @@ export function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Account</Label>
               <Input
                 id="username"
                 type="text"

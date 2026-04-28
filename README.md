@@ -57,8 +57,12 @@
 
 ### Admin 管理後台
 - **用戶管理** — 審核新用戶註冊 (Approve/Reject)、停用帳號、重設密碼
+- **狀態篩選** — User Management 提供 5 個分頁：All / Pending / Active / Disabled / Rejected
+- **停用確認** — Disable 前彈出確認對話框，避免誤操作
+- **帳號釋放** — 被停用或拒絕的用戶，其 username 和 email 會自動釋放，可重新註冊
 - **待審核提醒** — Sidebar 的 User Management 旁顯示待審核用戶數量 Badge
-- **Email 通知** — 新用戶註冊時自動發送 Email 通知給所有 Admin
+- **Email 通知** — 新用戶註冊、審核通過、審核拒絕、帳號停用時自動發送 Email 通知（英文）
+- **Admin 聯絡資訊** — Sidebar 下方及登入頁面顯示 Admin 聯絡 Email（從 .env 設定讀取）
 - **系統設定** — 管理狀態定義 (Status Definition) 的名稱、色碼
 
 ### 身份驗證與授權
@@ -853,11 +857,12 @@ Body: {
 ### 新增使用者
 
 1. 開啟登入頁面，點擊「Register」連結
-2. 填寫 Username、Email、Password（需含大小寫字母及數字，至少 8 字元）、Display Name
+2. 填寫 Name（顯示名稱）、Account（帳號）、Email、Password（需含大小寫字母及數字，至少 8 字元）
 3. 選擇所屬 Plant（可多選）和 Process（可多選），決定可編輯的資料範圍
 4. 送出後帳號狀態為「Pending」，需管理員審核
 5. 管理員至 **Admin → User Management** 頁面，找到 Pending 用戶，選擇角色後點擊「Approve」
 6. 管理員可隨時在 User Management 頁面修改使用者的 Plant/Process 權限
+7. 若需聯繫管理員，可點擊登入頁面或 Sidebar 下方的 Admin Contact Email
 
 ### 角色權限說明
 
@@ -1065,12 +1070,22 @@ SMTP_SENDER=noreply@example.com
 | `APP_BASE_URL` | Email 中「前往 User Management」按鈕的連結網址 |
 | `SMTP_SENDER` | Email 顯示的寄件者地址，Admin 回信會寄到此地址 |
 | `SMTP_HOST` | 留空則自動使用 Corning 內部 SMTP（`smtphub.corning.com`） |
-| `ADMIN_NOTIFICATION_EMAILS` | 收件者 Email（逗號分隔），留空則從 DB 查詢 Admin |
+| `ADMIN_NOTIFICATION_EMAILS` | Admin Email（逗號分隔），用於通知收件及前端顯示聯絡資訊，留空則從 DB 查詢 |
 
 #### 通知觸發時機
 
-1. **新用戶註冊** — 發送 Email 給所有 Active 狀態的 Admin
-2. **Sidebar Badge** — Admin 登入後，User Management 旁會顯示待審核人數（每分鐘刷新）
+| 事件 | Email 通知 |
+|------|-----------|
+| 新用戶註冊 | 發送給所有 Admin |
+| 審核通過 (Approve) | 發送給該用戶 |
+| 審核拒絕 (Reject) | 發送給該用戶 |
+| 帳號停用 (Disable) | 發送給該用戶 |
+
+#### 前端顯示
+
+- **Sidebar 下方** — 顯示 Admin Contact Email（可點擊發送郵件）
+- **登入頁面** — 顯示 Admin Contact Email
+- **Sidebar Badge** — Admin 登入後，User Management 旁顯示待審核人數（每分鐘刷新）
 
 ---
 

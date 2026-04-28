@@ -10,7 +10,11 @@ from app.models.process import Process
 from app.models.user import User
 from app.schemas.common import ok
 from app.schemas.user import UserApproveRequest, UserRejectRequest, UserResponse, UserUpdateRequest
-from app.utils.email import send_user_approved_notification, send_user_rejected_notification
+from app.utils.email import (
+    send_user_approved_notification,
+    send_user_disabled_notification,
+    send_user_rejected_notification,
+)
 from app.utils.security import hash_password
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
@@ -171,8 +175,18 @@ def disable_user(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Release username and email by appending suffix (allows re-registration)
+    # Send disable notification BEFORE modifying email
+    original_email = user.email
+    original_username = user.username
     disabled_suffix = f"_disabled_{user.id}"
+    if original_email and not original_email.endswith(disabled_suffix):
+        send_user_disabled_notification(
+            user_email=original_email,
+            username=original_username,
+            display_name=user.display_name,
+        )
+
+    # Release username and email by appending suffix (allows re-registration)
     if not user.username.endswith(disabled_suffix):
         user.username = f"{user.username}{disabled_suffix}"
     if not user.email.endswith(disabled_suffix):

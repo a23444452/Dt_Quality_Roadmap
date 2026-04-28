@@ -100,7 +100,7 @@ def send_new_user_registration_notification(
 def send_user_approved_notification(user_email: str, username: str, display_name: str) -> bool:
     """Send notification to user when their registration is approved."""
     base_url = settings.app_base_url.rstrip("/")
-    subject = "[D^t Roadmap] 您的帳號已通過審核"
+    subject = "[D^t Roadmap] Your Account Has Been Approved"
     body = f"""
     <!DOCTYPE html>
     <html>
@@ -115,20 +115,20 @@ def send_user_approved_notification(user_email: str, username: str, display_name
             .btn {{ display: inline-block; background: #16a34a; color: white; padding: 10px 20px;
                     text-decoration: none; border-radius: 5px; margin-top: 15px; }}
             .btn:hover {{ background: #15803d; }}
+            .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }}
         </style>
     </head>
     <body>
         <div class="container">
-            <h2>✓ 帳號審核通過</h2>
-            <p>親愛的 {display_name}，</p>
-            <p>恭喜！您的 D^t Solution Roadmap 帳號已通過審核，現在可以登入系統。</p>
-            <div class="info">
-                <p><strong>帳號：</strong>{username}</p>
+            <h2>Account Approved</h2>
+            <p>Hi {display_name},</p>
+            <p>Congratulations! Your D^t Solution Roadmap account <strong>{username}</strong> has been approved and you can now log in to the system.</p>
+            <p>For more details, please visit this page:</p>
+            <a href="{base_url}/login" class="btn">Log In Now</a>
+            <div class="footer">
+                <p>Best regards,<br>D^t Solution Roadmap System</p>
+                <p><em>Note: Replies to this email address are not monitored.</em></p>
             </div>
-            <a href="{base_url}/login" class="btn">立即登入</a>
-            <p style="margin-top: 20px; color: #666; font-size: 14px;">
-                如有任何問題，請聯繫系統管理員。
-            </p>
         </div>
     </body>
     </html>
@@ -140,8 +140,8 @@ def send_user_rejected_notification(
     user_email: str, username: str, display_name: str, reason: str | None = None
 ) -> bool:
     """Send notification to user when their registration is rejected."""
-    reason_text = f"<p><strong>拒絕原因：</strong>{reason}</p>" if reason else ""
-    subject = "[D^t Roadmap] 您的帳號註冊未通過"
+    reason_text = f"<p><strong>Reason:</strong> {reason}</p>" if reason else ""
+    subject = "[D^t Roadmap] Your Registration Has Been Rejected"
     body = f"""
     <!DOCTYPE html>
     <html>
@@ -153,20 +153,57 @@ def send_user_rejected_notification(
             h2 {{ color: #dc2626; }}
             .info {{ background: #fef2f2; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #dc2626; }}
             .info p {{ margin: 5px 0; }}
+            .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }}
         </style>
     </head>
     <body>
         <div class="container">
-            <h2>✗ 帳號註冊未通過</h2>
-            <p>親愛的 {display_name}，</p>
-            <p>很抱歉，您的 D^t Solution Roadmap 帳號註冊申請未通過審核。</p>
+            <h2>Registration Rejected</h2>
+            <p>Hi {display_name},</p>
+            <p>We regret to inform you that your D^t Solution Roadmap account <strong>{username}</strong> registration has not been approved.</p>
             <div class="info">
-                <p><strong>帳號：</strong>{username}</p>
                 {reason_text}
             </div>
-            <p style="margin-top: 20px; color: #666; font-size: 14px;">
-                如有疑問，請聯繫系統管理員了解詳情。
-            </p>
+            <p>If you have any questions, please contact the system administrator.</p>
+            <div class="footer">
+                <p>Best regards,<br>D^t Solution Roadmap System</p>
+                <p><em>Note: Replies to this email address are not monitored.</em></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return send_email([user_email], subject, body)
+
+
+def send_user_disabled_notification(user_email: str, username: str, display_name: str) -> bool:
+    """Send notification to user when their account is disabled."""
+    subject = "[D^t Roadmap] Your Account Has Been Disabled"
+    body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            h2 {{ color: #6b7280; }}
+            .info {{ background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #6b7280; }}
+            .info p {{ margin: 5px 0; }}
+            .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Account Disabled</h2>
+            <p>Hi {display_name},</p>
+            <p>Your D^t Solution Roadmap account <strong>{username}</strong> has been disabled by the administrator.</p>
+            <p>You will no longer be able to log in to the system.</p>
+            <p>If you believe this was done in error, please contact the system administrator.</p>
+            <div class="footer">
+                <p>Best regards,<br>D^t Solution Roadmap System</p>
+                <p><em>Note: Replies to this email address are not monitored.</em></p>
+            </div>
         </div>
     </body>
     </html>

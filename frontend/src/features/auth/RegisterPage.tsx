@@ -85,8 +85,33 @@ export function RegisterPage() {
     try {
       const message = await register(formData)
       setSuccessMessage(message || 'Registration submitted. Awaiting admin approval.')
-    } catch {
-      setError('Registration failed. The username or email may already be taken.')
+    } catch (err) {
+      // Extract error message from API response
+      const axiosError = err as {
+        response?: {
+          status?: number
+          data?: {
+            detail?: string | Array<{ loc: string[]; msg: string; type: string }>
+          }
+        }
+      }
+
+      if (axiosError.response?.status === 409) {
+        setError('Registration failed. The username or email is already taken.')
+      } else if (axiosError.response?.status === 422) {
+        // Validation error - extract field-specific messages
+        const detail = axiosError.response.data?.detail
+        if (Array.isArray(detail) && detail.length > 0) {
+          const messages = detail.map((d) => d.msg).join('; ')
+          setError(`Validation failed: ${messages}`)
+        } else {
+          setError('Validation failed. Please check your input.')
+        }
+      } else if (typeof axiosError.response?.data?.detail === 'string') {
+        setError(`Registration failed: ${axiosError.response.data.detail}`)
+      } else {
+        setError('Registration failed. Please check your input and try again.')
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -177,6 +202,9 @@ export function RegisterPage() {
                 value={formData.password}
                 onChange={handleChange('password')}
               />
+              <p className="text-xs text-muted-foreground">
+                At least 8 characters, including uppercase, lowercase, and a number
+              </p>
             </div>
 
             {!optionsLoading && (

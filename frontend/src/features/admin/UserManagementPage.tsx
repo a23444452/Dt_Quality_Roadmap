@@ -35,7 +35,7 @@ interface User {
   email: string
   display_name: string
   role: string
-  status: 'pending' | 'active' | 'disabled'
+  status: 'pending' | 'active' | 'disabled' | 'rejected'
   created_at: string
   plants: PlantRef[]
   processes: ProcessRef[]
@@ -51,12 +51,13 @@ interface ReferenceOptions {
   processes: ReferenceOption[]
 }
 
-type StatusFilter = 'all' | 'pending' | 'active' | 'disabled'
+type StatusFilter = 'all' | 'pending' | 'active' | 'disabled' | 'rejected'
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   active: 'bg-green-100 text-green-800 border-green-200',
   disabled: 'bg-gray-100 text-gray-600 border-gray-200',
+  rejected: 'bg-red-100 text-red-800 border-red-200',
 }
 
 export function UserManagementPage() {
@@ -155,7 +156,7 @@ export function UserManagementPage() {
       </div>
 
       <div className="flex gap-2">
-        {(['all', 'pending', 'active', 'disabled'] as StatusFilter[]).map((s) => (
+        {(['all', 'pending', 'active', 'disabled', 'rejected'] as StatusFilter[]).map((s) => (
           <Button
             key={s}
             variant={statusFilter === s ? 'default' : 'outline'}

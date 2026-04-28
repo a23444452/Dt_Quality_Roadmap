@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { Mail } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import apiClient from '@/lib/api-client'
+import type { ApiResponse } from '@/types/api'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -21,6 +25,16 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Fetch system config for admin contact emails
+  const { data: systemConfig } = useQuery({
+    queryKey: ['system-config'],
+    queryFn: async () => {
+      const resp = await apiClient.get<ApiResponse<{ admin_emails: string[]; app_url: string }>>('/reference/system-config')
+      return resp.data.data ?? { admin_emails: [], app_url: '' }
+    },
+    staleTime: 300000, // Cache for 5 minutes
+  })
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -103,6 +117,25 @@ export function LoginPage() {
             </p>
           </CardFooter>
         </form>
+
+        {/* Admin Contact */}
+        {systemConfig?.admin_emails && systemConfig.admin_emails.length > 0 && (
+          <div className="border-t px-6 py-4">
+            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+              <Mail size={12} />
+              Admin Contact
+            </p>
+            {systemConfig.admin_emails.map((email) => (
+              <a
+                key={email}
+                href={`mailto:${email}`}
+                className="block text-xs text-muted-foreground hover:text-foreground"
+              >
+                {email}
+              </a>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   )

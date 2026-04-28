@@ -9,6 +9,7 @@ export interface SolutionMapStatus {
 export interface SolutionRow {
   id: number
   name: string
+  description: string | null
   quality_attribute: string | null
   defect_type: string
   defect_category: string

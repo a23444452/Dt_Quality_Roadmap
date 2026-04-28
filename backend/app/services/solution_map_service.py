@@ -114,6 +114,7 @@ def get_pivot_data(
         result_solutions.append({
             "id": sol.id,
             "name": sol.name,
+            "description": sol.description,
             "quality_attribute": sol.quality_attribute,
             "defect_type": dtype.name,
             "defect_category": dcat.name,

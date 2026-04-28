@@ -71,6 +71,11 @@ export function PivotTable({ solutions, lines, statuses, canEdit, user }: PivotT
         cell: (info) => <span className="text-xs">{info.getValue()}</span>,
         size: 180,
       }),
+      columnHelper.accessor('description', {
+        header: 'Description',
+        cell: (info) => <span className="text-xs">{info.getValue() ?? '—'}</span>,
+        size: 200,
+      }),
     ]
 
     // Group lines by plant
@@ -137,7 +142,7 @@ export function PivotTable({ solutions, lines, statuses, canEdit, user }: PivotT
           <thead>
             {/* Plant group header row */}
             <tr className="bg-gray-100">
-              <th colSpan={5} className="border border-gray-200 px-2 py-1" />
+              <th colSpan={6} className="border border-gray-200 px-2 py-1" />
               {Object.entries(plantGroups).map(([plant, plantLines]) => (
                 <th
                   key={plant}

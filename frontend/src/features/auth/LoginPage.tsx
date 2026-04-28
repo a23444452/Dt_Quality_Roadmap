@@ -56,7 +56,7 @@ export function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Account</Label>
               <Input
                 id="username"
                 type="text"

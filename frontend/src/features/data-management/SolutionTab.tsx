@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { FileText, Upload, Trash2, Download } from 'lucide-react'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
 import { useAuth } from '@/features/auth/AuthContext'
@@ -22,6 +23,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
+const ALLOWED_FILE_TYPES = '.doc,.docx,.pdf,.xls,.xlsx,.csv,.txt'
+
 interface Solution {
   id: number
   name: string
@@ -29,6 +32,8 @@ interface Solution {
   station_id: number
   quality_attribute: string | null
   description: string | null
+  document_filename: string | null
+  document_path: string | null
   sort_order: number
   is_g_item: boolean
   is_active: boolean
@@ -70,6 +75,12 @@ interface SolutionForm {
 
 const EMPTY_FORM: SolutionForm = { name: '', defect_type_id: '', station_id: '', quality_attribute: '', description: '', sort_order: 0, is_g_item: false, is_active: true }
 
+function getFileIcon(filename: string | null) {
+  if (!filename) return null
+  const ext = filename.split('.').pop()?.toLowerCase()
+  return ext
+}
+
 export function SolutionTab() {
   const qc = useQueryClient()
   const { user } = useAuth()
@@ -78,6 +89,10 @@ export function SolutionTab() {
   const [editing, setEditing] = useState<Solution | null>(null)
   const [form, setForm] = useState<SolutionForm>(EMPTY_FORM)
   const [deleteTarget, setDeleteTarget] = useState<Solution | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadingSolutionId, setUploadingSolutionId] = useState<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dialogFileInputRef = useRef<HTMLInputElement>(null)
 
   const userProcessIds = useMemo(() => new Set(user?.processes?.map(p => p.id) ?? []), [user])
   const isAdmin = user?.role === 'admin'
@@ -167,7 +182,27 @@ export function SolutionTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['solutions'] }),
   })
 
-  const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setOpen(true) }
+  const uploadDocumentMutation = useMutation({
+    mutationFn: async ({ id, file }: { id: number; file: File }) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return apiClient.post(`/solutions/${id}/document`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['solutions'] })
+      setUploadingSolutionId(null)
+      setSelectedFile(null)
+    },
+  })
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/solutions/${id}/document`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['solutions'] }),
+  })
+
+  const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setSelectedFile(null); setOpen(true) }
   const openEdit = (s: Solution) => {
     setEditing(s)
     setForm({
@@ -180,15 +215,60 @@ export function SolutionTab() {
       is_g_item: s.is_g_item,
       is_active: s.is_active
     })
+    setSelectedFile(null)
     setOpen(true)
   }
-  const closeDialog = () => { setOpen(false); setEditing(null); setForm(EMPTY_FORM) }
+  const closeDialog = () => { setOpen(false); setEditing(null); setForm(EMPTY_FORM); setSelectedFile(null) }
 
-  const handleSubmit = () => {
+  const handleDownloadDocument = async (solutionId: number, filename: string) => {
+    try {
+      const response = await apiClient.get(`/solutions/${solutionId}/document`, {
+        responseType: 'blob',
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', filename)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      alert('Failed to download document')
+    }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, solutionId?: number) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (solutionId) {
+        // Direct upload from table
+        uploadDocumentMutation.mutate({ id: solutionId, file })
+      } else {
+        // File selected in dialog (for new solution or editing)
+        setSelectedFile(file)
+      }
+    }
+    e.target.value = ''
+  }
+
+  const handleSubmit = async () => {
     if (editing) {
-      updateMutation.mutate({ id: editing.id, body: form })
+      updateMutation.mutate({ id: editing.id, body: form }, {
+        onSuccess: () => {
+          if (selectedFile) {
+            uploadDocumentMutation.mutate({ id: editing.id, file: selectedFile })
+          }
+        }
+      })
     } else {
-      createMutation.mutate(form)
+      createMutation.mutate(form, {
+        onSuccess: (response) => {
+          if (selectedFile && response.data?.data?.id) {
+            uploadDocumentMutation.mutate({ id: response.data.data.id, file: selectedFile })
+          }
+        }
+      })
     }
   }
 
@@ -230,13 +310,14 @@ export function SolutionTab() {
                 <TableHead>Defect Category</TableHead>
                 <TableHead>Defect Type</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Document</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                     No solutions found.
                   </TableCell>
                 </TableRow>
@@ -269,6 +350,57 @@ export function SolutionTab() {
                         <span className={`px-2 py-0.5 text-xs rounded ${s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                           {s.is_active ? 'Active' : 'Inactive'}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {s.document_filename ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline max-w-[120px]"
+                              onClick={() => handleDownloadDocument(s.id, s.document_filename!)}
+                              title={s.document_filename}
+                            >
+                              <FileText size={14} />
+                              <span className="truncate">{s.document_filename}</span>
+                            </button>
+                            {canEditSolution(s) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                onClick={() => deleteDocumentMutation.mutate(s.id)}
+                                disabled={deleteDocumentMutation.isPending}
+                                title="Delete document"
+                              >
+                                <Trash2 size={12} />
+                              </Button>
+                            )}
+                          </div>
+                        ) : canEditSolution(s) ? (
+                          <div>
+                            <input
+                              type="file"
+                              accept={ALLOWED_FILE_TYPES}
+                              className="hidden"
+                              ref={fileInputRef}
+                              onChange={(e) => handleFileSelect(e, s.id)}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => {
+                                setUploadingSolutionId(s.id)
+                                fileInputRef.current?.click()
+                              }}
+                              disabled={uploadDocumentMutation.isPending && uploadingSolutionId === s.id}
+                            >
+                              <Upload size={12} className="mr-1" />
+                              {uploadDocumentMutation.isPending && uploadingSolutionId === s.id ? 'Uploading...' : 'Upload'}
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {canEditSolution(s) && (
@@ -401,6 +533,53 @@ export function SolutionTab() {
                 </div>
               </div>
             )}
+            <div className="space-y-1">
+              <Label>Document</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  accept={ALLOWED_FILE_TYPES}
+                  className="hidden"
+                  ref={dialogFileInputRef}
+                  onChange={(e) => handleFileSelect(e)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => dialogFileInputRef.current?.click()}
+                >
+                  <Upload size={14} className="mr-1" />
+                  Choose File
+                </Button>
+                {selectedFile ? (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <FileText size={14} />
+                    <span className="truncate max-w-[150px]">{selectedFile.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-destructive"
+                      onClick={() => setSelectedFile(null)}
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                ) : editing?.document_filename ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <FileText size={14} />
+                    <span className="truncate max-w-[150px]">{editing.document_filename}</span>
+                    <span className="text-xs">(current)</span>
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">No file selected</span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Allowed: Word, PDF, Excel, CSV, TXT
+              </p>
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={closeDialog}>Cancel</Button>

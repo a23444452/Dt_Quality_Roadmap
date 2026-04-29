@@ -25,6 +25,8 @@ class SolutionResponse(BaseModel):
     name: str
     quality_attribute: str | None
     description: str | None
+    document_filename: str | None
+    document_path: str | None
     is_g_item: bool
     is_active: bool
 

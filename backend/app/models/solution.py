@@ -15,6 +15,8 @@ class Solution(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     quality_attribute: Mapped[str | None] = mapped_column(String(200), nullable=True)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    document_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    document_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_g_item: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

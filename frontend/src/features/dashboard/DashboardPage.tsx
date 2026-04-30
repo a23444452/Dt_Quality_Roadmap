@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
-import type { DashboardSummary } from '@/types/dashboard'
+import type { DashboardSummary, FilterOption } from '@/types/dashboard'
 import { KpiCards } from './KpiCards'
 import { PlantCoverageTable } from './PlantCoverageTable'
 import { SankeyChart } from '@/components/charts/SankeyChart'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface Filters {
   defect_category_id?: number
@@ -17,7 +18,20 @@ interface Filters {
 
 export function DashboardPage() {
   const [filters, setFilters] = useState<Filters>({})
+  const [kpiPlantId, setKpiPlantId] = useState<number | undefined>(undefined)
 
+  // KPI data with separate plant filter
+  const { data: kpiData, isLoading: kpiLoading } = useQuery({
+    queryKey: ['dashboard-kpi', kpiPlantId],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (kpiPlantId) params.append('plant_id', String(kpiPlantId))
+      const resp = await apiClient.get<ApiResponse<DashboardSummary>>(`/dashboard/summary?${params}`)
+      return resp.data.data!
+    },
+  })
+
+  // Sankey data with all filters
   const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard-summary', filters],
     queryFn: async () => {
@@ -32,7 +46,7 @@ export function DashboardPage() {
     },
   })
 
-  if (isLoading) {
+  if (isLoading || kpiLoading) {
     return (
       <div className="flex items-center justify-center py-24 text-muted-foreground">
         Loading dashboard…
@@ -40,13 +54,15 @@ export function DashboardPage() {
     )
   }
 
-  if (isError || !data) {
+  if (isError || !data || !kpiData) {
     return (
       <div className="flex items-center justify-center py-24 text-destructive">
         Failed to load dashboard data.
       </div>
     )
   }
+
+  const plantOptions: FilterOption[] = data.filter_options.plants
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
     const numVal = value === '' ? undefined : Number(value)
@@ -66,7 +82,33 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Dashboard</h1>
-      <KpiCards data={data.kpi} />
+
+      {/* KPI Section with Plant Filter */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Key Performance Indicators</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Plant:</span>
+            <Select
+              value={kpiPlantId ? String(kpiPlantId) : 'all'}
+              onValueChange={(v) => setKpiPlantId(v === 'all' ? undefined : Number(v))}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Plants" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Plants</SelectItem>
+                {plantOptions.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <KpiCards data={kpiData.kpi} />
+      </div>
       <div className="rounded-lg border bg-white p-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Solution Flow</h2>

@@ -26,7 +26,15 @@ def get_summary(
 
     # Exclude NA and No intention from total count
     excluded_status_ids = [s.id for s in [na_status, no_intention_status] if s is not None]
-    total_query = db.query(func.count(SolutionMap.id))
+
+    # Base query with optional plant filter
+    def build_kpi_query():
+        query = db.query(func.count(SolutionMap.id))
+        if plant_id:
+            query = query.join(TankLine, SolutionMap.tank_line_id == TankLine.id).filter(TankLine.plant_id == plant_id)
+        return query
+
+    total_query = build_kpi_query()
     if excluded_status_ids:
         total_query = total_query.filter(~SolutionMap.status_id.in_(excluded_status_ids))
     total = total_query.scalar() or 0
@@ -34,7 +42,10 @@ def get_summary(
     def count_by_status(status):
         if status is None:
             return 0
-        return db.query(func.count(SolutionMap.id)).filter(SolutionMap.status_id == status.id).scalar() or 0
+        query = db.query(func.count(SolutionMap.id)).filter(SolutionMap.status_id == status.id)
+        if plant_id:
+            query = query.join(TankLine, SolutionMap.tank_line_id == TankLine.id).filter(TankLine.plant_id == plant_id)
+        return query.scalar() or 0
 
     mp_count = count_by_status(mp_status)
     dev_count = count_by_status(dev_status)

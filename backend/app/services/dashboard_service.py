@@ -182,6 +182,7 @@ def get_process_analysis(db: Session, plant_id: int | None = None) -> dict:
     Stations are ordered by sort_order which represents the production flow sequence
     from the Excel file (top to bottom = production line order).
     """
+    # Build base query for solution count per station
     query = (
         db.query(
             Process.category.label("process_category"),
@@ -207,6 +208,42 @@ def get_process_analysis(db: Session, plant_id: int | None = None) -> dict:
 
     rows = query.all()
 
+    # Get MP status for lookup
+    mp_status = db.query(StatusDefinition).filter(StatusDefinition.code == "MP").first()
+    mp_status_id = mp_status.id if mp_status else None
+
+    # Get solution names and their MP tank/lines for each station
+    solution_detail_query = (
+        db.query(
+            Station.id.label("station_id"),
+            Solution.id.label("solution_id"),
+            Solution.name.label("solution_name"),
+            TankLine.name.label("tank_line_name"),
+            SolutionMap.status_id.label("status_id"),
+        )
+        .join(Solution, Solution.station_id == Station.id)
+        .join(SolutionMap, SolutionMap.solution_id == Solution.id)
+        .join(TankLine, SolutionMap.tank_line_id == TankLine.id)
+        .filter(Solution.is_active == True)  # noqa: E712
+    )
+
+    if plant_id:
+        solution_detail_query = solution_detail_query.filter(TankLine.plant_id == plant_id)
+
+    solution_detail_rows = solution_detail_query.all()
+
+    # Group solutions by station_id with their MP tank/lines
+    station_solutions: dict[int, dict[str, list[str]]] = {}
+    for row in solution_detail_rows:
+        if row.station_id not in station_solutions:
+            station_solutions[row.station_id] = {}
+        if row.solution_name not in station_solutions[row.station_id]:
+            station_solutions[row.station_id][row.solution_name] = []
+        # Only add tank/line if status is MP
+        if mp_status_id and row.status_id == mp_status_id:
+            if row.tank_line_name not in station_solutions[row.station_id][row.solution_name]:
+                station_solutions[row.station_id][row.solution_name].append(row.tank_line_name)
+
     nodes = [
         {
             "process_category": row.process_category,
@@ -215,11 +252,24 @@ def get_process_analysis(db: Session, plant_id: int | None = None) -> dict:
             "station_id": row.station_id,
             "sort_order": row.sort_order,
             "solution_count": row.solution_count,
+            "solutions": [
+                {
+                    "name": sol_name,
+                    "mp_lines": sorted(mp_lines),
+                }
+                for sol_name, mp_lines in sorted(station_solutions.get(row.station_id, {}).items())
+            ],
         }
         for row in rows
     ]
 
-    return {"nodes": nodes}
+    # Get plants for filter dropdown
+    plants = [
+        {"id": p.id, "name": p.name}
+        for p in db.query(Plant).filter(Plant.is_active == True).order_by(Plant.sort_order).all()  # noqa: E712
+    ]
+
+    return {"nodes": nodes, "plants": plants}
 
 
 def get_defect_analysis(

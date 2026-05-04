@@ -8,6 +8,8 @@
 
 ### Dashboard 儀表板
 - **KPI 卡片** — 即時顯示 Solution 總數、MP (Mass Production) 覆蓋率、Developing 與 Planned 數量
+- **Plant 篩選** — KPI 卡片支援依 Plant 下拉選單篩選，查看各工廠的統計數據
+- **完整狀態明細** — Total Solutions 卡片顯示所有狀態數量：MP + Developing + Planned + Initiation + Resource Constrain
 - **計算說明** — 每張 KPI 卡片下方顯示計算方式（如「15 MP + 20 Developing + 10 Planned」）
 - **桑基圖 (Sankey Chart)** — 視覺化呈現 Defect Category → Defect Type → Solution → Plant 的流向關係
 - **篩選功能** — 支援依 Defect Category 與 Process 篩選 Sankey 圖資料
@@ -20,6 +22,7 @@
 - **即時編輯** — Editor/Admin 點擊 cell 可直接修改狀態，支援樂觀鎖 (Optimistic Lock) 防止並發衝突
 - **批次更新** — 一次更新多筆 Solution Map 狀態
 - **Quality Attribute** — 顯示每個 Solution 的品質屬性
+- **Status Definition 說明** — 左上角「Status Definition」按鈕，點擊彈出各狀態的詳細說明（MP、Developing、Initiation 等）
 
 ### Process Map 製程地圖
 - **互動式流程圖** — 顯示完整製程流程圖片 (Melting → Forming → BOD → CBW → INSP → DP)
@@ -53,7 +56,12 @@
 - **範本下載** — 提供標準匯入範本，含下拉式選單驗證與參考工作表
 
 ### Analysis 分析頁面
-- **製程分析** — 各製程 Solution 數量堆疊圖、圓餅圖分佈、彙總表格
+- **製程分析 (Process Analysis)** — 依 Station 分析 Solution 分佈
+  - **Plant 篩選** — 右上角下拉選單選擇特定工廠或全部工廠
+  - **堆疊長條圖** — 各 Station 的 Solution 數量，以 Process 顏色區分堆疊，圖表標題顯示總計
+  - **Summary Table** — 左側 1/2 寬度表格，列出 Process、Station、Solutions 數量
+  - **Solution Details 卡片** — 右側 1/2 寬度，點擊 Summary Table 的 Solutions 數字後顯示該 Station 的所有 Solution
+  - **MP Tank/Lines 資訊** — Solution Details 內每個 Solution 顯示已 MP 到哪些 Tank/Lines（依選擇的 Plant 篩選）
 
 ### Admin 管理後台
 - **用戶管理** — 審核新用戶註冊 (Approve/Reject)、停用帳號、重設密碼

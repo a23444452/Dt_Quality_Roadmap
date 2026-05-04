@@ -21,6 +21,8 @@ def get_summary(
     mp_status = next((s for s in statuses.values() if s.code == "MP"), None)
     dev_status = next((s for s in statuses.values() if s.code == "DEVELOPING"), None)
     plan_status = next((s for s in statuses.values() if s.code == "PLANNED"), None)
+    init_status = next((s for s in statuses.values() if s.code == "INITIATION"), None)
+    resource_status = next((s for s in statuses.values() if s.code == "RESOURCE_CONSTRAIN"), None)
     na_status = next((s for s in statuses.values() if s.code == "NA"), None)
     no_intention_status = next((s for s in statuses.values() if s.code == "NO_INTENTION"), None)
 
@@ -50,6 +52,8 @@ def get_summary(
     mp_count = count_by_status(mp_status)
     dev_count = count_by_status(dev_status)
     plan_count = count_by_status(plan_status)
+    init_count = count_by_status(init_status)
+    resource_count = count_by_status(resource_status)
 
     # Coverage by plant (exclude NA and No intention from total)
     coverage_by_plant = []
@@ -81,6 +85,8 @@ def get_summary(
         "mp_percentage": round((mp_count / total) * 100, 1) if total > 0 else 0,
         "developing_count": dev_count,
         "planned_count": plan_count,
+        "initiation_count": init_count,
+        "resource_constrain_count": resource_count,
         "coverage_by_plant": coverage_by_plant,
     }
 

@@ -22,6 +22,8 @@ export interface KpiData {
   mp_percentage: number
   developing_count: number
   planned_count: number
+  initiation_count: number
+  resource_constrain_count: number
   coverage_by_plant: PlantCoverage[]
 }
 

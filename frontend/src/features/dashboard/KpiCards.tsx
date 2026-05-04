@@ -19,9 +19,10 @@ export function KpiCards({ data }: KpiCardsProps) {
       accent: 'text-foreground',
       iconBg: 'bg-slate-100',
       extra: (
-        <p className="text-xs text-muted-foreground mt-2">
-          {data.mp_count} MP + {data.developing_count} Developing + {data.planned_count} Planned
-        </p>
+        <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
+          <p>{data.mp_count} MP + {data.developing_count} Developing + {data.planned_count} Planned</p>
+          <p>+ {data.initiation_count} Initiation + {data.resource_constrain_count} Resource Constrain</p>
+        </div>
       ),
     },
     {

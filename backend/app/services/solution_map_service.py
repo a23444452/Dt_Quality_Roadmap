@@ -141,7 +141,7 @@ def get_pivot_data(
         "stations": [{"id": s.id, "name": s.name, "process_id": s.process_id} for s in db.query(Station).filter(Station.is_active == True).order_by(Station.sort_order).all()],  # noqa: E712
         "defect_categories": [{"id": c.id, "name": c.name} for c in db.query(DefectCategory).filter(DefectCategory.is_active == True).order_by(DefectCategory.sort_order).all()],  # noqa: E712
         "plants": [{"id": p.id, "name": p.name} for p in db.query(Plant).filter(Plant.is_active == True).order_by(Plant.sort_order).all()],  # noqa: E712
-        "statuses": [{"id": s.id, "code": s.code, "name": s.name, "color": s.color} for s in db.query(StatusDefinition).filter(StatusDefinition.is_active == True).order_by(StatusDefinition.sort_order).all()],  # noqa: E712
+        "statuses": [{"id": s.id, "code": s.code, "name": s.name, "description": s.description, "color": s.color} for s in db.query(StatusDefinition).filter(StatusDefinition.is_active == True).order_by(StatusDefinition.sort_order).all()],  # noqa: E712
     }
 
     return {"solutions": result_solutions, "lines": result_lines, "filters": filters}

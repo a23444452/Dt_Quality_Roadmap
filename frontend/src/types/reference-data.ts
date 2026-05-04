@@ -2,6 +2,7 @@ export interface Status {
   id: number
   code: string
   name: string
+  description: string | null
   color: string
 }
 

@@ -70,7 +70,7 @@ export function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="username">Account</Label>
+              <Label htmlFor="username">NT Account</Label>
               <Input
                 id="username"
                 type="text"

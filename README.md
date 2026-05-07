@@ -872,6 +872,65 @@ Body: {
 6. 管理員可隨時在 User Management 頁面修改使用者的 Plant/Process 權限
 7. 若需聯繫管理員，可點擊登入頁面或 Sidebar 下方的 Admin Contact Email
 
+### API 服務帳號（外部系統整合）
+
+若其他廠的 Dashboard 或自動化系統需要透過 REST API 取得本系統資料，可建立 **Viewer 權限的服務帳號**。
+
+#### 建立服務帳號
+
+```bash
+cd backend
+.venv\Scripts\activate  # Windows
+# source .venv/bin/activate  # macOS/Linux
+
+# 建立預設 api-service 帳號（自動產生 20 字元強密碼）
+python -m app.create_service_account
+
+# 建立自訂名稱的服務帳號（如各廠專用）
+python -m app.create_service_account --username api-plant-a
+
+# 指定密碼
+python -m app.create_service_account --username api-plant-a --password "YourSecret123!"
+
+# 重設現有服務帳號的密碼
+python -m app.create_service_account --username api-service --reset
+```
+
+執行後會顯示帳號資訊與使用範例，密碼**只會顯示一次**，請妥善保存。
+
+#### 服務帳號使用範例
+
+```bash
+# 1. 取得 access token
+curl -X POST http://your-server/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "api-service", "password": "xxxxx"}'
+
+# 回傳：{"data": {"access_token": "eyJ...", ...}}
+
+# 2. 呼叫資料 API
+curl http://your-server/api/v1/dashboard/summary \
+  -H 'Authorization: Bearer eyJ...'
+```
+
+#### 可用的 API 端點（Viewer 權限）
+
+| 端點 | 說明 |
+|------|------|
+| `GET /api/v1/dashboard/summary` | KPI + Sankey 圖資料 |
+| `GET /api/v1/dashboard/process-analysis` | 製程分析資料 |
+| `GET /api/v1/dashboard/defect-analysis` | 缺陷分析資料 |
+| `GET /api/v1/solution-map` | Solution Map 完整資料 |
+| `GET /api/v1/solutions` | Solution 清單 |
+| `GET /api/v1/plants` | 工廠清單 |
+| `GET /api/v1/tank-lines` | 產線清單 |
+| `GET /api/v1/statuses` | 狀態定義 |
+
+> **安全性建議**：
+> - 每個外部系統/工廠建議使用獨立的服務帳號，方便追蹤與權限管理
+> - 密碼請儲存在整合系統的環境變數（如 `.env`），避免寫死在程式碼中
+> - 若密碼外洩，執行 `--reset` 即可重設
+
 ### 角色權限說明
 
 | 操作 | Viewer | Editor | Admin |

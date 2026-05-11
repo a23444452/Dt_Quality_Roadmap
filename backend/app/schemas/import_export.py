@@ -16,6 +16,7 @@ class ImportPreview(BaseModel):
     total_rows: int
     new_records: int
     updated_records: int
+    new_solutions: int = 0
     errors: list[ImportError]
     warnings: list[ImportWarning]
 
@@ -29,3 +30,4 @@ class ImportResult(BaseModel):
     created: int
     updated: int
     skipped: int
+    solutions_created: int = 0

@@ -7,7 +7,9 @@ from pathlib import Path
 from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 
+from app.models.defect import DefectType
 from app.models.plant import TankLine
+from app.models.process import Station
 from app.models.solution import Solution
 from app.models.solution_map import SolutionMap
 from app.models.status_definition import StatusDefinition
@@ -48,6 +50,8 @@ def preview_import(db: Session, file_bytes: bytes, format: str) -> dict:
     # Load lookup tables
     statuses_by_code = {s.code.upper(): s for s in db.query(StatusDefinition).all()}
     solutions_by_name = {s.name.lower(): s for s in db.query(Solution).all()}
+    defect_types_by_name = {dt.name.lower(): dt for dt in db.query(DefectType).all()}
+    stations_by_name = {st.name.lower(): st for st in db.query(Station).all()}
     lines_by_name: dict[str, TankLine] = {}
     for line in db.query(TankLine).all():
         lines_by_name[line.name.lower()] = line
@@ -55,6 +59,10 @@ def preview_import(db: Session, file_bytes: bytes, format: str) -> dict:
     errors = []
     warnings = []
     valid_records = []
+    # Solutions to be auto-created: key=name.lower(), value={name, defect_type_id, station_id}
+    new_solutions_map: dict[str, dict] = {}
+    # Warn only once per new solution name
+    warned_new_solutions: set[str] = set()
 
     for idx, record in enumerate(records):
         row_num = idx + 2  # 1-based, accounting for header row
@@ -80,9 +88,56 @@ def preview_import(db: Session, file_bytes: bytes, format: str) -> dict:
             continue
 
         solution = solutions_by_name.get(solution_name.lower())
+        new_solution_key: str | None = None
+
         if solution is None:
-            errors.append({"row": row_num, "field": "solution", "message": f"Solution not found: '{solution_name}'"})
-            has_error = True
+            # Attempt auto-create: requires valid defect_type and station
+            defect_type_name = (record.get("defect_type") or "").strip()
+            station_name = (record.get("station") or "").strip()
+
+            if not defect_type_name:
+                errors.append({
+                    "row": row_num, "field": "defect_type",
+                    "message": f"Cannot auto-create solution '{solution_name}': defect_type is empty",
+                })
+                has_error = True
+            if not station_name:
+                errors.append({
+                    "row": row_num, "field": "station",
+                    "message": f"Cannot auto-create solution '{solution_name}': station is empty",
+                })
+                has_error = True
+
+            dt = defect_types_by_name.get(defect_type_name.lower()) if defect_type_name else None
+            st = stations_by_name.get(station_name.lower()) if station_name else None
+
+            if defect_type_name and dt is None:
+                errors.append({
+                    "row": row_num, "field": "defect_type",
+                    "message": f"Cannot auto-create solution '{solution_name}': defect_type '{defect_type_name}' not found",
+                })
+                has_error = True
+            if station_name and st is None:
+                errors.append({
+                    "row": row_num, "field": "station",
+                    "message": f"Cannot auto-create solution '{solution_name}': station '{station_name}' not found",
+                })
+                has_error = True
+
+            if not has_error:
+                new_solution_key = solution_name.lower()
+                if new_solution_key not in new_solutions_map:
+                    new_solutions_map[new_solution_key] = {
+                        "name": solution_name,
+                        "defect_type_id": dt.id,  # type: ignore[union-attr]
+                        "station_id": st.id,  # type: ignore[union-attr]
+                    }
+                if new_solution_key not in warned_new_solutions:
+                    warnings.append({
+                        "row": row_num,
+                        "message": f"New solution '{solution_name}' will be auto-created",
+                    })
+                    warned_new_solutions.add(new_solution_key)
 
         line = lines_by_name.get(line_name.lower())
         if line is None:
@@ -98,15 +153,19 @@ def preview_import(db: Session, file_bytes: bytes, format: str) -> dict:
             continue
 
         valid_records.append({
-            "solution_id": solution.id,  # type: ignore[union-attr]
+            "solution_id": solution.id if solution else None,
+            "new_solution_key": new_solution_key,
             "tank_line_id": line.id,  # type: ignore[union-attr]
             "status_id": status.id,  # type: ignore[union-attr]
         })
 
-    # Determine new vs updated
+    # Determine new vs updated (records targeting new solutions are always "new")
     new_count = 0
     updated_count = 0
     for rec in valid_records:
+        if rec["solution_id"] is None:
+            new_count += 1
+            continue
         existing = db.query(SolutionMap).filter(
             SolutionMap.solution_id == rec["solution_id"],
             SolutionMap.tank_line_id == rec["tank_line_id"],
@@ -121,6 +180,7 @@ def preview_import(db: Session, file_bytes: bytes, format: str) -> dict:
         "import_id": import_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "records": valid_records,
+        "new_solutions": new_solutions_map,
     }
     _temp_file_path(import_id).write_text(json.dumps(temp_data))
 
@@ -129,6 +189,7 @@ def preview_import(db: Session, file_bytes: bytes, format: str) -> dict:
         "total_rows": len(records),
         "new_records": new_count,
         "updated_records": updated_count,
+        "new_solutions": len(new_solutions_map),
         "errors": errors,
         "warnings": warnings,
     }
@@ -151,19 +212,56 @@ def confirm_import(db: Session, import_id: str, user_id: int) -> dict | None:
         return None
 
     records = temp_data["records"]
+    new_solutions_map: dict[str, dict] = temp_data.get("new_solutions", {})
+
+    # Step 1: create new solutions, build key → id mapping
+    new_solution_ids: dict[str, int] = {}
+    solutions_created = 0
+    for key, info in new_solutions_map.items():
+        # Guard against race conditions: someone else may have created this solution
+        existing_sol = db.query(Solution).filter(
+            Solution.defect_type_id == info["defect_type_id"],
+            Solution.station_id == info["station_id"],
+            Solution.name == info["name"],
+        ).first()
+        if existing_sol:
+            new_solution_ids[key] = existing_sol.id
+            continue
+
+        new_sol = Solution(
+            name=info["name"],
+            defect_type_id=info["defect_type_id"],
+            station_id=info["station_id"],
+            created_by=user_id,
+            updated_by=user_id,
+        )
+        db.add(new_sol)
+        db.flush()
+        new_solution_ids[key] = new_sol.id
+        solutions_created += 1
+
+    # Step 2: process SolutionMap records
     created_count = 0
     updated_count = 0
     skipped_count = 0
 
     for rec in records:
+        solution_id = rec.get("solution_id")
+        if solution_id is None:
+            key = rec.get("new_solution_key")
+            if not key or key not in new_solution_ids:
+                skipped_count += 1
+                continue
+            solution_id = new_solution_ids[key]
+
         existing = db.query(SolutionMap).filter(
-            SolutionMap.solution_id == rec["solution_id"],
+            SolutionMap.solution_id == solution_id,
             SolutionMap.tank_line_id == rec["tank_line_id"],
         ).first()
 
         if existing is None:
             new_entry = SolutionMap(
-                solution_id=rec["solution_id"],
+                solution_id=solution_id,
                 tank_line_id=rec["tank_line_id"],
                 status_id=rec["status_id"],
                 version=1,
@@ -190,6 +288,7 @@ def confirm_import(db: Session, import_id: str, user_id: int) -> dict | None:
         "created": created_count,
         "updated": updated_count,
         "skipped": skipped_count,
+        "solutions_created": solutions_created,
     }
 
 
@@ -277,6 +376,17 @@ def generate_template(db: Session, format: str) -> bytes:
         for sol, dtype, sta, proc in solutions_query.all()
     ]
 
+    # Authoritative station/defect_type lists from DB so the dropdowns also
+    # include newly-created entries not yet referenced by any Solution.
+    all_stations = [
+        s.name for s in db.query(Station).filter(Station.is_active == True)  # noqa: E712
+        .order_by(Station.sort_order, Station.name).all()
+    ]
+    all_defect_types = [
+        d.name for d in db.query(DefectType).filter(DefectType.is_active == True)  # noqa: E712
+        .order_by(DefectType.sort_order, DefectType.name).all()
+    ]
+
     # Query tank/lines with plant info
     from app.models.plant import Plant
 
@@ -309,4 +419,8 @@ def generate_template(db: Session, format: str) -> bytes:
         for s in statuses_query.all()
     ]
 
-    return generate_template_excel(format, solutions, tank_lines, statuses)
+    return generate_template_excel(
+        format, solutions, tank_lines, statuses,
+        all_stations=all_stations,
+        all_defect_types=all_defect_types,
+    )

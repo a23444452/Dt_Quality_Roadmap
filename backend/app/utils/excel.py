@@ -151,6 +151,8 @@ def generate_template(
     solutions: list[dict] | None = None,
     tank_lines: list[dict] | None = None,
     statuses: list[dict] | None = None,
+    all_stations: list[str] | None = None,
+    all_defect_types: list[str] | None = None,
 ) -> bytes:
     """Generate a template workbook with headers, reference data sheets, and dropdown validation.
 
@@ -159,17 +161,53 @@ def generate_template(
         solutions: list of dicts with keys: name, defect_type, station, process
         tank_lines: list of dicts with keys: name, plant, line_type
         statuses: list of dicts with keys: code, name
+        all_stations: full list of station names from DB (used for dropdown when provided);
+            falls back to stations derived from `solutions` if omitted.
+        all_defect_types: full list of defect_type names from DB (dropdown source);
+            falls back to values derived from `solutions` if omitted.
     """
     wb = Workbook()
     ws = wb.active
     ws.title = "Template"
 
-    # Build unique lists for dropdowns
-    unique_defect_types = list(dict.fromkeys([s.get("defect_type", "") for s in (solutions or []) if s.get("defect_type")]))
-    unique_stations = list(dict.fromkeys([s.get("station", "") for s in (solutions or []) if s.get("station")]))
+    # Build unique lists for dropdowns.
+    # Prefer the authoritative lists from DB so newly-created references (not yet
+    # referenced by any Solution) also appear in the dropdown.
+    if all_defect_types is not None:
+        unique_defect_types = list(dict.fromkeys([dt for dt in all_defect_types if dt]))
+    else:
+        unique_defect_types = list(dict.fromkeys([s.get("defect_type", "") for s in (solutions or []) if s.get("defect_type")]))
+
+    if all_stations is not None:
+        unique_stations = list(dict.fromkeys([st for st in all_stations if st]))
+    else:
+        unique_stations = list(dict.fromkeys([s.get("station", "") for s in (solutions or []) if s.get("station")]))
+
     unique_plants = list(dict.fromkeys([tl.get("plant", "") for tl in (tank_lines or []) if tl.get("plant")]))
     unique_line_names = list(dict.fromkeys([tl.get("name", "") for tl in (tank_lines or []) if tl.get("name")]))
     status_codes = [st.get("code", "") for st in (statuses or []) if st.get("code")]
+
+    # Create a hidden worksheet to hold long dropdown lists, sidestepping the
+    # 255-char limit of inline list validations.
+    lists_ws = wb.create_sheet("_Lists")
+    lists_ws.sheet_state = "hidden"
+    list_ranges: dict[str, str] = {}
+    _column_idx = 1
+    for key, values in (
+        ("defect_types", unique_defect_types),
+        ("stations", unique_stations),
+        ("plants", unique_plants),
+        ("lines", unique_line_names),
+        ("statuses", status_codes),
+    ):
+        if not values:
+            continue
+        col_letter = _col_idx_to_letter(_column_idx)
+        lists_ws.cell(row=1, column=_column_idx, value=key)
+        for i, v in enumerate(values):
+            lists_ws.cell(row=i + 2, column=_column_idx, value=v)
+        list_ranges[key] = f"'_Lists'!${col_letter}$2:${col_letter}${len(values) + 1}"
+        _column_idx += 1
 
     # Number of data rows to apply validation (100 rows should be enough)
     max_rows = 100
@@ -188,19 +226,19 @@ def generate_template(
         # Add data validation for matrix format
         # Column B: Defect Type dropdown
         if unique_defect_types:
-            dv_defect = _create_dropdown(unique_defect_types)
+            dv_defect = _create_dropdown(unique_defect_types, list_ranges.get("defect_types"))
             dv_defect.add(f"B3:B{max_rows + 2}")
             ws.add_data_validation(dv_defect)
 
         # Column C: Station dropdown
         if unique_stations:
-            dv_station = _create_dropdown(unique_stations)
+            dv_station = _create_dropdown(unique_stations, list_ranges.get("stations"))
             dv_station.add(f"C3:C{max_rows + 2}")
             ws.add_data_validation(dv_station)
 
         # Status columns (D onwards): Status code dropdown - use single DV for all columns
         if status_codes:
-            dv_status = _create_dropdown(status_codes)
+            dv_status = _create_dropdown(status_codes, list_ranges.get("statuses"))
             for col_idx in range(4, 4 + len(line_headers)):
                 col_letter = _col_idx_to_letter(col_idx)
                 dv_status.add(f"{col_letter}3:{col_letter}{max_rows + 2}")
@@ -214,31 +252,31 @@ def generate_template(
         # Add data validation for list format
         # Column B: Defect Type dropdown
         if unique_defect_types:
-            dv_defect = _create_dropdown(unique_defect_types)
+            dv_defect = _create_dropdown(unique_defect_types, list_ranges.get("defect_types"))
             dv_defect.add(f"B3:B{max_rows + 2}")
             ws.add_data_validation(dv_defect)
 
         # Column C: Station dropdown
         if unique_stations:
-            dv_station = _create_dropdown(unique_stations)
+            dv_station = _create_dropdown(unique_stations, list_ranges.get("stations"))
             dv_station.add(f"C3:C{max_rows + 2}")
             ws.add_data_validation(dv_station)
 
         # Column D: Plant dropdown
         if unique_plants:
-            dv_plant = _create_dropdown(unique_plants)
+            dv_plant = _create_dropdown(unique_plants, list_ranges.get("plants"))
             dv_plant.add(f"D3:D{max_rows + 2}")
             ws.add_data_validation(dv_plant)
 
         # Column E: Tank/Line dropdown (just line names)
         if unique_line_names:
-            dv_line = _create_dropdown(unique_line_names)
+            dv_line = _create_dropdown(unique_line_names, list_ranges.get("lines"))
             dv_line.add(f"E3:E{max_rows + 2}")
             ws.add_data_validation(dv_line)
 
         # Column F: Status dropdown
         if status_codes:
-            dv_status = _create_dropdown(status_codes)
+            dv_status = _create_dropdown(status_codes, list_ranges.get("statuses"))
             dv_status.add(f"F3:F{max_rows + 2}")
             ws.add_data_validation(dv_status)
 
@@ -311,38 +349,47 @@ def workbook_to_bytes(wb: Workbook) -> bytes:
 
 # ─── Internal helpers ─────────────────────────────────────────────────────────
 
-def _create_dropdown(options: list[str]) -> DataValidation:
+def _create_dropdown(options: list[str], range_ref: str | None = None) -> DataValidation:
     """Create a DataValidation object for dropdown list.
 
-    Note: Excel inline list validation has a 255 character limit.
-    Options containing commas will have commas replaced with semicolons.
+    When `range_ref` is provided (e.g. "'_Lists'!$A$2:$A$50"), the dropdown
+    sources options from that range — this avoids the 255-char limit of inline
+    list validations. Otherwise falls back to an inline comma-joined list.
     """
-    if not options:
+    if not options and not range_ref:
         raise ValueError("Cannot create dropdown with empty options list")
 
-    # Replace commas in option values to prevent breaking the dropdown
-    clean_options = [opt.replace(",", ";") for opt in options]
-    options_str = ",".join(clean_options)
-
-    if len(options_str) <= 255:
+    if range_ref:
         dv = DataValidation(
             type="list",
-            formula1=f'"{options_str}"',
-            allow_blank=True,
-            showDropDown=False,  # False = show dropdown arrow
-        )
-    else:
-        # Truncate to fit 255 char limit, keeping complete options
-        truncated = options_str[:255]
-        last_comma = truncated.rfind(",")
-        if last_comma > 0:
-            truncated = truncated[:last_comma]
-        dv = DataValidation(
-            type="list",
-            formula1=f'"{truncated}"',
+            formula1=f"={range_ref}",
             allow_blank=True,
             showDropDown=False,
         )
+    else:
+        # Replace commas in option values to prevent breaking the dropdown
+        clean_options = [opt.replace(",", ";") for opt in options]
+        options_str = ",".join(clean_options)
+
+        if len(options_str) <= 255:
+            dv = DataValidation(
+                type="list",
+                formula1=f'"{options_str}"',
+                allow_blank=True,
+                showDropDown=False,
+            )
+        else:
+            # Truncate to fit 255 char limit, keeping complete options
+            truncated = options_str[:255]
+            last_comma = truncated.rfind(",")
+            if last_comma > 0:
+                truncated = truncated[:last_comma]
+            dv = DataValidation(
+                type="list",
+                formula1=f'"{truncated}"',
+                allow_blank=True,
+                showDropDown=False,
+            )
     dv.error = "Please select a value from the dropdown list"
     dv.errorTitle = "Invalid Input"
     dv.prompt = "Select from list"

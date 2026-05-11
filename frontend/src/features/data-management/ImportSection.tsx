@@ -10,13 +10,19 @@ interface ImportError {
   message: string
 }
 
+interface ImportWarning {
+  row: number
+  message: string
+}
+
 interface ImportPreview {
   import_id: string
   total_rows: number
   new_records: number
   updated_records: number
+  new_solutions: number
   errors: ImportError[]
-  warnings: string[]
+  warnings: ImportWarning[]
 }
 
 export function ImportSection() {
@@ -124,26 +130,42 @@ export function ImportSection() {
         <div className="rounded-lg border p-4 space-y-3">
           <h4 className="font-medium">Import Preview</h4>
           <p className="text-sm text-muted-foreground">Total rows: {preview.total_rows}</p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <div className="text-center p-3 bg-green-50 rounded">
               <p className="text-2xl font-bold text-green-700">{preview.new_records}</p>
-              <p className="text-xs text-green-600">New</p>
+              <p className="text-xs text-green-600">New Map Entries</p>
             </div>
             <div className="text-center p-3 bg-blue-50 rounded">
               <p className="text-2xl font-bold text-blue-700">{preview.updated_records}</p>
               <p className="text-xs text-blue-600">Updated</p>
+            </div>
+            <div className="text-center p-3 bg-purple-50 rounded">
+              <p className="text-2xl font-bold text-purple-700">{preview.new_solutions}</p>
+              <p className="text-xs text-purple-600">New Solutions</p>
             </div>
             <div className="text-center p-3 bg-red-50 rounded">
               <p className="text-2xl font-bold text-red-700">{preview.errors.length}</p>
               <p className="text-xs text-red-600">Errors</p>
             </div>
           </div>
+          {preview.warnings.length > 0 && (
+            <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded space-y-1 max-h-40 overflow-y-auto">
+              <p className="font-medium">Warnings ({preview.warnings.length}):</p>
+              {preview.warnings.slice(0, 10).map((w, i) => (
+                <p key={i}>Row {w.row}: {w.message}</p>
+              ))}
+              {preview.warnings.length > 10 && (
+                <p>...and {preview.warnings.length - 10} more warnings</p>
+              )}
+            </div>
+          )}
           {preview.errors.length > 0 && (
-            <div className="text-sm text-red-600 bg-red-50 p-2 rounded space-y-1">
-              {preview.errors.slice(0, 5).map((err, i) => (
+            <div className="text-sm text-red-600 bg-red-50 p-2 rounded space-y-1 max-h-40 overflow-y-auto">
+              <p className="font-medium">Errors ({preview.errors.length}):</p>
+              {preview.errors.slice(0, 10).map((err, i) => (
                 <p key={i}>Row {err.row}: {err.message}</p>
               ))}
-              {preview.errors.length > 5 && <p>...and {preview.errors.length - 5} more errors</p>}
+              {preview.errors.length > 10 && <p>...and {preview.errors.length - 10} more errors</p>}
             </div>
           )}
           <div className="flex gap-2">

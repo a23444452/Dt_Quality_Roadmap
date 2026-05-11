@@ -82,18 +82,18 @@ export function StationTab() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (body: StationForm) => apiClient.post('/reference/stations', body),
+    mutationFn: (body: StationForm) => apiClient.post('/stations', body),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['stations'] }); closeDialog() },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: number; body: Partial<StationForm> }) =>
-      apiClient.put(`/reference/stations/${id}`, body),
+      apiClient.put(`/stations/${id}`, body),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['stations'] }); closeDialog() },
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiClient.delete(`/reference/stations/${id}`),
+    mutationFn: (id: number) => apiClient.delete(`/stations/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['stations'] }); setDeleteTarget(null) },
   })
 

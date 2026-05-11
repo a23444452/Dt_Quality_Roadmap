@@ -35,6 +35,7 @@ class StationCreate(BaseModel):
 
 
 class StationUpdate(BaseModel):
+    process_id: int | None = None
     name: str | None = None
     description: str | None = None
     sort_order: int | None = None

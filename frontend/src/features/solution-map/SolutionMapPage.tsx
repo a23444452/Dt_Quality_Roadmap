@@ -4,6 +4,7 @@ import { useAuth } from '@/features/auth/AuthContext'
 import { useSolutionMap } from '@/hooks/useSolutionMap'
 import { FilterBar } from './FilterBar'
 import { PivotTable } from './PivotTable'
+import { ExportButton } from './ExportButton'
 import {
   Popover,
   PopoverContent,
@@ -77,11 +78,14 @@ export function SolutionMapPage() {
             </Popover>
           )}
         </div>
-        {canEdit && (
-          <span className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-1">
-            Click any cell to edit status
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {canEdit && (
+            <span className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+              Click any cell to edit status
+            </span>
+          )}
+          <ExportButton processId={filters.process_id} plantId={filters.plant_id} />
+        </div>
       </div>
 
       <FilterBar

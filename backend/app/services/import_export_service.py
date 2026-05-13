@@ -326,7 +326,9 @@ def generate_export(
     status_map = {s.id: s.code for s in db.query(StatusDefinition).all()}
 
     records = []
+    mapped_solution_ids: set[int] = set()
     for sm, sol, dtype, sta, proc, line, plant in rows:
+        mapped_solution_ids.add(sol.id)
         records.append({
             "solution": sol.name,
             "defect_type": dtype.name,
@@ -334,6 +336,30 @@ def generate_export(
             "plant": plant.name,
             "line": line.name,
             "status": status_map.get(sm.status_id, ""),
+        })
+
+    # Include active solutions that have no solution_map entry (or none matching
+    # the plant filter). Without this, INNER JOIN above would silently drop them.
+    unmapped_query = (
+        db.query(Solution, DefectType, Station, Process)
+        .join(DefectType, Solution.defect_type_id == DefectType.id)
+        .join(Station, Solution.station_id == Station.id)
+        .join(Process, Station.process_id == Process.id)
+        .filter(Solution.is_active == True)  # noqa: E712
+    )
+    if process_id is not None:
+        unmapped_query = unmapped_query.filter(Process.id == process_id)
+
+    for sol, dtype, sta, proc in unmapped_query.all():
+        if sol.id in mapped_solution_ids:
+            continue
+        records.append({
+            "solution": sol.name,
+            "defect_type": dtype.name,
+            "station": sta.name,
+            "plant": "",
+            "line": "",
+            "status": "",
         })
 
     if format == "matrix":

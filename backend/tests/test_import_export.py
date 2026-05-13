@@ -468,6 +468,39 @@ def test_export_generates_valid_xlsx(client):
     assert "solution" in header
 
 
+def test_export_list_includes_solutions_without_solution_map(client):
+    """Regression: solutions with zero solution_map entries must still appear."""
+    uid, hdrs = _create_editor(client)
+    ids = _setup_scenario(client)
+    # Intentionally do NOT create any SolutionMap row.
+
+    resp = client.get("/api/v1/import-export/export?format=list", headers=hdrs)
+    assert resp.status_code == 200
+
+    wb = load_workbook(filename=io.BytesIO(resp.content))
+    ws = wb.active
+    solution_col = [cell.value for cell in ws["A"]]
+    assert ids["solution_name"] in solution_col, (
+        "Solution with no solution_map entry was dropped from list export"
+    )
+
+
+def test_export_matrix_includes_solutions_without_solution_map(client):
+    """Regression: same for matrix format — solution row must appear with empty cells."""
+    uid, hdrs = _create_editor(client)
+    ids = _setup_scenario(client)
+
+    resp = client.get("/api/v1/import-export/export?format=matrix", headers=hdrs)
+    assert resp.status_code == 200
+
+    wb = load_workbook(filename=io.BytesIO(resp.content))
+    ws = wb.active
+    solution_col = [cell.value for cell in ws["A"]]
+    assert ids["solution_name"] in solution_col, (
+        "Solution with no solution_map entry was dropped from matrix export"
+    )
+
+
 def test_export_matrix_format(client):
     uid, hdrs = _create_editor(client)
     ids = _setup_scenario(client)

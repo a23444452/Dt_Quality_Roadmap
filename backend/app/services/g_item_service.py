@@ -107,3 +107,45 @@ def list_g_items(
         })
 
     return items, total
+
+
+class NotGItemError(ValueError):
+    """Raised when a caller tries to update reason/remark on a non-G$ Solution."""
+
+
+def update_g_item(
+    db: Session,
+    *,
+    solution_id: int,
+    actor_id: int,
+    fields: dict[str, Any],
+) -> dict[str, Any]:
+    """Update reason and/or remark for a G$ solution.
+
+    `fields` should contain only the keys the caller wants changed (use
+    Pydantic's model_dump(exclude_unset=True) upstream). Valid keys:
+    "reason", "remark". An empty or None remark is stored as NULL.
+
+    Raises LookupError if the solution does not exist.
+    Raises NotGItemError if the solution is not marked as G$.
+    """
+    sol = db.query(Solution).filter(Solution.id == solution_id).first()
+    if sol is None:
+        raise LookupError(f"Solution {solution_id} not found")
+    if not sol.is_g_item:
+        raise NotGItemError("Solution is not a G$ item")
+
+    if "reason" in fields:
+        sol.reason = fields["reason"]
+    if "remark" in fields:
+        raw = fields["remark"]
+        sol.remark = None if raw in (None, "") else raw
+
+    sol.updated_by = actor_id
+    db.commit()
+    db.refresh(sol)
+
+    items, _ = list_g_items(db, search=sol.name)
+    # list_g_items uses LIKE on lower(name); pick the exact match to avoid
+    # collisions when one name is a prefix of another.
+    return next(i for i in items if i["id"] == sol.id)

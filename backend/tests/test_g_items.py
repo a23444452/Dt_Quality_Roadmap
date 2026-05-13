@@ -223,3 +223,70 @@ def test_list_g_items_pagination(db_session):
     items, total = list_g_items(db_session, page=2, limit=2)
     assert total == 3
     assert len(items) == 1
+
+
+# ─── Service tests: update_g_item ─────────────────────────────────────────────
+from app.services.g_item_service import update_g_item, NotGItemError
+
+
+def test_update_g_item_sets_reason_and_remark(db_session):
+    ids = _seed_minimal(db_session)
+    updated = update_g_item(
+        db_session, solution_id=ids["g_sol_id"], actor_id=1,
+        fields={"reason": "FMEA_H_RISK", "remark": "changed"},
+    )
+    assert updated["reason"] == "FMEA_H_RISK"
+    assert updated["remark"] == "changed"
+
+
+def test_update_g_item_partial_leaves_other_field_alone(db_session):
+    ids = _seed_minimal(db_session)
+    # seed had reason=QI, remark="Critical quality issue"
+    updated = update_g_item(
+        db_session, solution_id=ids["g_sol_id"], actor_id=1,
+        fields={"remark": "new remark only"},
+    )
+    assert updated["reason"] == "QI"  # untouched
+    assert updated["remark"] == "new remark only"
+
+
+def test_update_g_item_clears_fields_on_null(db_session):
+    ids = _seed_minimal(db_session)
+    updated = update_g_item(
+        db_session, solution_id=ids["g_sol_id"], actor_id=1,
+        fields={"reason": None, "remark": None},
+    )
+    assert updated["reason"] is None
+    assert updated["remark"] is None
+
+
+def test_update_g_item_empty_string_remark_becomes_null(db_session):
+    ids = _seed_minimal(db_session)
+    updated = update_g_item(
+        db_session, solution_id=ids["g_sol_id"], actor_id=1,
+        fields={"remark": ""},
+    )
+    assert updated["remark"] is None
+
+
+def test_update_g_item_raises_not_found(db_session):
+    _seed_minimal(db_session)
+    with pytest.raises(LookupError):
+        update_g_item(db_session, solution_id=99999, actor_id=1, fields={})
+
+
+def test_update_g_item_raises_when_not_g_item(db_session):
+    _seed_minimal(db_session)
+    non_g = db_session.query(Solution).filter(Solution.name == "Plain Clean").first()
+    with pytest.raises(NotGItemError):
+        update_g_item(db_session, solution_id=non_g.id, actor_id=1, fields={})
+
+
+def test_update_g_item_sets_updated_by(db_session):
+    ids = _seed_minimal(db_session)
+    update_g_item(
+        db_session, solution_id=ids["g_sol_id"], actor_id=42,
+        fields={"remark": "touched"},
+    )
+    sol = db_session.query(Solution).filter(Solution.id == ids["g_sol_id"]).first()
+    assert sol.updated_by == 42

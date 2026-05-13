@@ -422,6 +422,13 @@ def test_get_g_items_reasons_unspecified_filter(client):
     assert {r["name"] for r in resp.json()["data"]} == {"NoReasonG"}
 
 
+def test_get_g_items_rejects_bad_reason_query(client):
+    _seed_via_session(client)
+    hdrs = _mk_user(client, role="admin")
+    resp = client.get("/api/v1/g-items?reasons=BOGUS", headers=hdrs)
+    assert resp.status_code == 422
+
+
 def test_put_g_item_as_admin(client):
     ids = _seed_via_session(client)
     hdrs = _mk_user(client, role="admin")

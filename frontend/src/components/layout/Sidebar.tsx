@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Mail,
+  DollarSign,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
@@ -33,6 +34,10 @@ const mainNavItems: NavItem[] = [
   { label: 'Solution Map', icon: Grid3X3, to: '/solution-map' },
   { label: 'Process Analysis', icon: Activity, to: '/analysis/process' },
   { label: 'Data Management', icon: Database, to: '/data-management' },
+]
+
+const managementNavItems: NavItem[] = [
+  { label: 'G$ Management', icon: DollarSign, to: '/admin/g-items' },
 ]
 
 interface SidebarNavItemProps {
@@ -96,6 +101,7 @@ export function Sidebar() {
   const { user } = useAuth()
 
   const isAdmin = user?.role === 'admin'
+  const isAdminOrEditor = user?.role === 'admin' || user?.role === 'editor'
 
   // Fetch pending users count for admin badge
   const { data: pendingCount } = useQuery({
@@ -152,6 +158,11 @@ export function Sidebar() {
               isExact={item.to === '/'}
             />
           ))}
+
+          {isAdminOrEditor &&
+            managementNavItems.map((item) => (
+              <SidebarNavItem key={item.to} item={item} collapsed={collapsed} />
+            ))}
 
           {/* Admin section */}
           {isAdmin && (

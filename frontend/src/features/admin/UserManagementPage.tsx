@@ -73,9 +73,23 @@ export function UserManagementPage() {
   const { data: users, isLoading } = useQuery({
     queryKey: ['users', statusFilter],
     queryFn: async () => {
-      const params = statusFilter !== 'all' ? { status: statusFilter } : {}
-      const resp = await apiClient.get<ApiResponse<User[]>>('/users', { params })
-      return resp.data.data ?? []
+      // Backend caps limit at 100, so page through results until we have all users.
+      const baseParams: Record<string, string | number> = { limit: 100 }
+      if (statusFilter !== 'all') baseParams.status = statusFilter
+
+      const all: User[] = []
+      let page = 1
+      while (true) {
+        const resp = await apiClient.get<ApiResponse<User[]>>('/users', {
+          params: { ...baseParams, page },
+        })
+        const batch = resp.data.data ?? []
+        all.push(...batch)
+        const total = resp.data.meta?.total ?? all.length
+        if (all.length >= total || batch.length === 0) break
+        page += 1
+      }
+      return all
     },
   })
 

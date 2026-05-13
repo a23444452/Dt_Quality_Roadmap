@@ -109,6 +109,48 @@ def list_g_items(
     return items, total
 
 
+def _serialize_g_item(db: Session, sol: Solution) -> dict[str, Any]:
+    """Serialize a single Solution into the GItemResponse dict shape.
+
+    Used by update_g_item to return a consistent response without re-running
+    list_g_items (which filters out is_active=False rows and would raise
+    StopIteration for such solutions).
+    """
+    sta = db.query(Station).filter(Station.id == sol.station_id).one()
+    proc = db.query(Process).filter(Process.id == sta.process_id).one()
+    sm_rows = (
+        db.query(SolutionMap, TankLine, Plant, StatusDefinition)
+        .join(TankLine, SolutionMap.tank_line_id == TankLine.id)
+        .join(Plant, TankLine.plant_id == Plant.id)
+        .join(StatusDefinition, SolutionMap.status_id == StatusDefinition.id)
+        .filter(SolutionMap.solution_id == sol.id)
+        .all()
+    )
+    return {
+        "id": sol.id,
+        "name": sol.name,
+        "process": proc.name,
+        "station": sta.name,
+        "quality_attribute": sol.quality_attribute,
+        "reason": sol.reason,
+        "remark": sol.remark,
+        "solution_map": [
+            {
+                "plant_id": plant.id,
+                "plant_name": plant.name,
+                "tank_line_id": line.id,
+                "tank_line_name": line.name,
+                "status_id": status.id,
+                "status_code": status.code,
+                "status_color": status.color,
+                "solution_map_id": sm.id,
+                "version": sm.version,
+            }
+            for sm, line, plant, status in sm_rows
+        ],
+    }
+
+
 class NotGItemError(ValueError):
     """Raised when a caller tries to update reason/remark on a non-G$ Solution."""
 
@@ -145,7 +187,4 @@ def update_g_item(
     db.commit()
     db.refresh(sol)
 
-    items, _ = list_g_items(db, search=sol.name)
-    # list_g_items uses LIKE on lower(name); pick the exact match to avoid
-    # collisions when one name is a prefix of another.
-    return next(i for i in items if i["id"] == sol.id)
+    return _serialize_g_item(db, sol)

@@ -290,3 +290,40 @@ def test_update_g_item_sets_updated_by(db_session):
     )
     sol = db_session.query(Solution).filter(Solution.id == ids["g_sol_id"]).first()
     assert sol.updated_by == 42
+
+
+def test_update_g_item_on_inactive_solution_still_returns_response(db_session):
+    """Regression: _serialize_g_item must return even for is_active=False, otherwise
+    admin would get a 500 after a successful DB write."""
+    ids = _seed_minimal(db_session)
+    sol = db_session.query(Solution).filter(Solution.id == ids["g_sol_id"]).first()
+    sol.is_active = False
+    db_session.commit()
+
+    updated = update_g_item(
+        db_session, solution_id=ids["g_sol_id"], actor_id=1,
+        fields={"remark": "still updatable?"},
+    )
+    assert updated["remark"] == "still updatable?"
+    assert updated["name"] == "Anti-Bubble Spray"
+
+
+def test_update_g_item_empty_fields_still_stamps_updated_by(db_session):
+    ids = _seed_minimal(db_session)
+    result = update_g_item(
+        db_session, solution_id=ids["g_sol_id"], actor_id=7, fields={},
+    )
+    assert result["reason"] == "QI"   # unchanged
+    assert result["remark"] == "Critical quality issue"
+    sol = db_session.query(Solution).filter(Solution.id == ids["g_sol_id"]).first()
+    assert sol.updated_by == 7
+
+
+def test_update_g_item_reason_only(db_session):
+    ids = _seed_minimal(db_session)
+    updated = update_g_item(
+        db_session, solution_id=ids["g_sol_id"], actor_id=1,
+        fields={"reason": "OTHER"},
+    )
+    assert updated["reason"] == "OTHER"
+    assert updated["remark"] == "Critical quality issue"  # untouched

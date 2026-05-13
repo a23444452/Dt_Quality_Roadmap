@@ -327,3 +327,157 @@ def test_update_g_item_reason_only(db_session):
     )
     assert updated["reason"] == "OTHER"
     assert updated["remark"] == "Critical quality issue"  # untouched
+
+
+# ─── Router tests ─────────────────────────────────────────────────────────────
+from fastapi.testclient import TestClient
+
+from app.dependencies import get_db
+from app.main import app
+from app.models.user import User
+from app.utils.security import create_access_token, hash_password
+
+
+@pytest.fixture
+def client():
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}
+    )
+    connection = engine.connect()
+    event.listen(Base.metadata, "before_create", _sqlite_bigint_workaround)
+    Base.metadata.create_all(bind=connection)
+    event.remove(Base.metadata, "before_create", _sqlite_bigint_workaround)
+    TestSession = sessionmaker(bind=connection)
+
+    def override_get_db():
+        session = TestSession()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+    Base.metadata.drop_all(bind=connection)
+    connection.close()
+
+
+def _mk_user(client, *, role: str) -> dict:
+    db = next(app.dependency_overrides[get_db]())
+    u = User(
+        username=f"{role}u",
+        email=f"{role}@example.com",
+        password_hash=hash_password("TestPass123"),
+        display_name=role.title(),
+        role=role,
+        status="active",
+    )
+    db.add(u); db.commit(); db.refresh(u)
+    return {"Authorization": f"Bearer {create_access_token(u.id, u.role)}"}
+
+
+def _seed_via_session(client):
+    """Use the override-get_db session to seed minimal data."""
+    db = next(app.dependency_overrides[get_db]())
+    return _seed_minimal(db)
+
+
+def test_get_g_items_as_admin(client):
+    _seed_via_session(client)
+    hdrs = _mk_user(client, role="admin")
+    resp = client.get("/api/v1/g-items", headers=hdrs)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["meta"]["total"] == 1
+    assert body["data"][0]["reason"] == "QI"
+
+
+def test_get_g_items_as_editor(client):
+    _seed_via_session(client)
+    hdrs = _mk_user(client, role="editor")
+    resp = client.get("/api/v1/g-items", headers=hdrs)
+    assert resp.status_code == 200
+
+
+def test_get_g_items_rejects_viewer(client):
+    _seed_via_session(client)
+    hdrs = _mk_user(client, role="viewer")
+    resp = client.get("/api/v1/g-items", headers=hdrs)
+    assert resp.status_code == 403
+
+
+def test_get_g_items_reasons_unspecified_filter(client):
+    ids = _seed_via_session(client)
+    # Add a G$ row with no reason
+    db = next(app.dependency_overrides[get_db]())
+    dt = db.query(DefectType).first()
+    sta = db.query(Station).first()
+    db.add(Solution(defect_type_id=dt.id, station_id=sta.id,
+                    name="NoReasonG", is_g_item=True))
+    db.commit()
+    hdrs = _mk_user(client, role="admin")
+    resp = client.get("/api/v1/g-items?reasons=UNSPECIFIED", headers=hdrs)
+    assert resp.status_code == 200
+    assert {r["name"] for r in resp.json()["data"]} == {"NoReasonG"}
+
+
+def test_put_g_item_as_admin(client):
+    ids = _seed_via_session(client)
+    hdrs = _mk_user(client, role="admin")
+    resp = client.put(
+        f"/api/v1/g-items/{ids['g_sol_id']}",
+        json={"reason": "FMEA_H_RISK", "remark": "updated"},
+        headers=hdrs,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["reason"] == "FMEA_H_RISK"
+
+
+def test_put_g_item_rejects_editor(client):
+    ids = _seed_via_session(client)
+    hdrs = _mk_user(client, role="editor")
+    resp = client.put(
+        f"/api/v1/g-items/{ids['g_sol_id']}",
+        json={"reason": "QI"},
+        headers=hdrs,
+    )
+    assert resp.status_code == 403
+
+
+def test_put_g_item_404_when_missing(client):
+    _seed_via_session(client)
+    hdrs = _mk_user(client, role="admin")
+    resp = client.put("/api/v1/g-items/99999", json={"reason": "QI"}, headers=hdrs)
+    assert resp.status_code == 404
+
+
+def test_put_g_item_400_when_not_g(client):
+    _seed_via_session(client)
+    db = next(app.dependency_overrides[get_db]())
+    non_g = db.query(Solution).filter(Solution.name == "Plain Clean").first()
+    hdrs = _mk_user(client, role="admin")
+    resp = client.put(f"/api/v1/g-items/{non_g.id}",
+                      json={"reason": "QI"}, headers=hdrs)
+    assert resp.status_code == 400
+    assert "not a G$ item" in resp.json()["detail"]
+
+
+def test_put_g_item_422_on_bad_reason(client):
+    ids = _seed_via_session(client)
+    hdrs = _mk_user(client, role="admin")
+    resp = client.put(f"/api/v1/g-items/{ids['g_sol_id']}",
+                      json={"reason": "BOGUS"}, headers=hdrs)
+    assert resp.status_code == 422
+
+
+def test_put_g_item_partial_update(client):
+    ids = _seed_via_session(client)
+    hdrs = _mk_user(client, role="admin")
+    # send only reason
+    resp = client.put(f"/api/v1/g-items/{ids['g_sol_id']}",
+                      json={"reason": "OTHER"}, headers=hdrs)
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["reason"] == "OTHER"
+    assert data["remark"] == "Critical quality issue"  # preserved from seed

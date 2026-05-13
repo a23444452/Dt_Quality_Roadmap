@@ -7,8 +7,6 @@ import type { User } from '@/types/auth'
 interface Props {
   item: GItemEntry
   user: User | null
-  /** Fetched once at page level — lookup of status_id → color. */
-  statusColors: Record<number, string>
   /** All status options available to change to (for the editor). */
   statuses: { id: number; code: string; name: string; color: string }[]
 }
@@ -21,7 +19,7 @@ export function GItemRowExpanded({ item, user, statuses }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   // Build unique plants and lines for this solution
-  const { plants, lines, cellMap, processId } = useMemo(() => {
+  const { plants, lines, cellMap } = useMemo(() => {
     const plantIds = new Set<number>()
     const lineIds = new Set<number>()
     const cm = new Map<string, GItemSolutionMapEntry>()
@@ -38,11 +36,8 @@ export function GItemRowExpanded({ item, user, statuses }: Props) {
       const first = item.solution_map.find((sm) => sm.tank_line_id === id)!
       return { id, name: first.tank_line_name, plant_id: first.plant_id }
     })
-    // processId needed for Editor cell scope; derive from any line via stations lookup if available.
-    // In practice we only have item.process as a name, not id — the editor-scope check here is best-
-    // effort by plant; the backend will reject anything out-of-scope with 403 anyway.
-    return { plants: plantList, lines: lineList, cellMap: cm, processId: null as number | null }
-  }, [item])
+    return { plants: plantList, lines: lineList, cellMap: cm }
+  }, [item.solution_map])
 
   function canEditCell(plantId: number): boolean {
     if (!user) return false
@@ -85,14 +80,6 @@ export function GItemRowExpanded({ item, user, statuses }: Props) {
         No solution map entries yet for this solution.
       </div>
     )
-  }
-
-  // Group lines under their plant to render plant rows
-  const linesByPlant = new Map<number, typeof lines>()
-  for (const ln of lines) {
-    const arr = linesByPlant.get(ln.plant_id) ?? []
-    arr.push(ln)
-    linesByPlant.set(ln.plant_id, arr)
   }
 
   return (

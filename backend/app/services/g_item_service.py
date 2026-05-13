@@ -1,10 +1,9 @@
 """Business logic for the G$ Management feature."""
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models.defect import DefectType  # noqa: F401 — imported for relationship resolution
 from app.models.plant import Plant, TankLine
 from app.models.process import Process, Station
 from app.models.solution import Solution
@@ -47,7 +46,6 @@ def list_g_items(
             .join(TankLine, SolutionMap.tank_line_id == TankLine.id)
             .filter(TankLine.plant_id.in_(plant_ids))
             .distinct()
-            .subquery()
         )
         query = query.filter(Solution.id.in_(solution_ids_in_plants))
 
@@ -59,11 +57,10 @@ def list_g_items(
         if REASON_UNSPECIFIED in reasons:
             reason_clauses.append(Solution.reason.is_(None))
         if reason_clauses:
-            from sqlalchemy import or_
             query = query.filter(or_(*reason_clauses))
 
     if search:
-        query = query.filter(func.lower(Solution.name).like(f"%{search.lower()}%"))
+        query = query.filter(Solution.name.ilike(f"%{search}%"))
 
     query = query.order_by(Solution.name)
 

@@ -74,13 +74,18 @@
 - **系統設定** — 管理狀態定義 (Status Definition) 的名稱、色碼
 
 ### 身份驗證與授權
+- **雙登入模式** — 登入頁面以 Tabs 分為 **Corning AD** 與 **Local Account**，Corning AD 為預設
+- **Corning AD 登入** — 使用 NT 帳號 + 公司密碼，透過 LDAP 向 `ap.corning.com` 驗證
+  - 首次 AD 登入若系統尚無此帳號，跳出視窗補填 Name/Email 與 Plant/Process（可複選），送出後進入 Pending 等 Admin 審核
+  - AD 帳號不儲存公司密碼，每次登入都即時驗證
+  - Username 比對為 case-insensitive，避免大小寫不一致造成重複帳號
 - **本地帳號** — 帳號密碼登入，密碼以 bcrypt 雜湊儲存
 - **註冊審核制** — 新用戶註冊後需管理員審核通過才能使用
 - **Plant/Process 選擇** — 註冊時選擇所屬 Plant 與 Process，決定可編輯的資料範圍
 - **JWT Token** — Access Token (8hr) + Refresh Token (7 天, HttpOnly Cookie)
 - **角色權限** — Viewer (唯讀) / Editor (編輯) / Admin (管理)
 - **Cell-level 權限** — Editor 只能編輯自己 Plant 和 Process 範圍內的 Solution Map
-- **密碼重設** — Email 重設連結 + 管理員手動重設
+- **密碼重設** — Email 重設連結 + 管理員手動重設（僅適用本地帳號；AD 帳號密碼由公司 IT 管理）
 
 ---
 
@@ -864,13 +869,29 @@ Body: {
 
 ### 新增使用者
 
-1. 開啟登入頁面，點擊「Register」連結
+#### 方式一：Corning AD 登入（推薦 Corning 員工使用）
+
+1. 登入頁面切換到 **Corning AD** Tab（預設）
+2. 輸入 NT 帳號（例如 `wangm44`，不需加 `@corning.com`）與 Corning 密碼
+3. 首次登入系統會自動彈出「Complete your registration」視窗
+   - 填寫 Name、Email
+   - 勾選所屬 Plant（可複選）與 Process（可複選）
+   - 送出後帳號狀態為「Pending」
+4. 管理員至 **Admin → User Management** 頁面審核、指派角色
+5. 審核通過後，下次用相同 NT 帳號登入即直接進入系統
+
+#### 方式二：Local Account 註冊（適用無 Corning AD 的外部人員或測試）
+
+1. 登入頁面切換到 **Local Account** Tab，點擊「Register」連結
 2. 填寫 Name（顯示名稱）、Account（帳號）、Email、Password（需含大小寫字母及數字，至少 8 字元）
 3. 選擇所屬 Plant（可多選）和 Process（可多選），決定可編輯的資料範圍
 4. 送出後帳號狀態為「Pending」，需管理員審核
 5. 管理員至 **Admin → User Management** 頁面，找到 Pending 用戶，選擇角色後點擊「Approve」
-6. 管理員可隨時在 User Management 頁面修改使用者的 Plant/Process 權限
-7. 若需聯繫管理員，可點擊登入頁面或 Sidebar 下方的 Admin Contact Email
+
+#### 共同事項
+
+- 管理員可隨時在 User Management 頁面修改使用者的 Plant/Process 權限
+- 若需聯繫管理員，可點擊登入頁面或 Sidebar 下方的 Admin Contact Email
 
 ### API 服務帳號（外部系統整合）
 
@@ -957,8 +978,10 @@ curl http://your-server/api/v1/dashboard/summary \
 
 | 端點 | 方法 | 說明 | 權限 |
 |------|------|------|------|
-| `/api/v1/auth/login` | POST | 登入 | Public |
-| `/api/v1/auth/register` | POST | 註冊 | Public |
+| `/api/v1/auth/login` | POST | 本地帳號登入 | Public |
+| `/api/v1/auth/register` | POST | 本地帳號註冊 | Public |
+| `/api/v1/auth/ad-login` | POST | Corning AD 登入（LDAP 驗證） | Public |
+| `/api/v1/auth/ad-register` | POST | AD 首次登入補填資料（需 AD 密碼再驗證） | Public |
 | `/api/v1/auth/refresh` | POST | 刷新 Token | Public |
 | `/api/v1/auth/forgot-password` | POST | 忘記密碼 | Public |
 | `/api/v1/auth/reset-password` | POST | 重設密碼 | Public |
@@ -1496,8 +1519,9 @@ npx tsc --noEmit
 ## 安全機制
 
 - **密碼** — bcrypt 雜湊 (cost factor 12)
+- **Corning AD 驗證** — 透過 `ldap3` 向 `ap.corning.com` 綁定驗證；AD 密碼不進資料庫、不寫 log
 - **JWT** — HS256 演算法，Access Token 8hr + Refresh Token 7 天 (HttpOnly Cookie)
-- **Rate Limiting** — 登入端點 5 次/分鐘
+- **Rate Limiting** — `/login`、`/ad-login` 5 次/分鐘；`/ad-register` 3 次/分鐘
 - **SQL Injection 防護** — SQLAlchemy 參數化查詢
 - **XSS 防護** — React 自動 escape
 - **CORS** — 限制允許的來源

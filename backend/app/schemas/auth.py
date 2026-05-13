@@ -1,7 +1,14 @@
+from typing import Literal
+
 from pydantic import BaseModel, field_validator
 
 
 class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class ADLoginRequest(BaseModel):
     username: str
     password: str
 
@@ -67,3 +74,30 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+
+class ADLoginAuthenticated(BaseModel):
+    status: Literal["authenticated"] = "authenticated"
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: UserInfo
+
+
+class ADLoginNeedRegistration(BaseModel):
+    status: Literal["need_registration"] = "need_registration"
+    username: str
+
+
+class ADLoginPendingApproval(BaseModel):
+    status: Literal["pending_approval"] = "pending_approval"
+    username: str
+
+
+class ADRegisterRequest(BaseModel):
+    username: str
+    password: str
+    email: str
+    display_name: str
+    plant_ids: list[int] = []
+    process_ids: list[int] = []

@@ -6,6 +6,11 @@ from app.dependencies import get_db
 from app.middleware.rate_limit import limiter
 from app.models.user import User
 from app.schemas.auth import (
+    ADLoginAuthenticated,
+    ADLoginNeedRegistration,
+    ADLoginPendingApproval,
+    ADLoginRequest,
+    ADRegisterRequest,
     ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
@@ -17,8 +22,12 @@ from app.schemas.auth import (
 )
 from app.schemas.common import ok
 from app.services.auth_service import (
+    ADAuthResult,
+    ADRegistrationConflict,
+    authenticate_ad_user,
     authenticate_user,
     create_reset_token,
+    register_ad_user,
     register_user,
     reset_password,
 )
@@ -85,6 +94,110 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
     # Send email notification to admins
     # Priority: 1) ADMIN_NOTIFICATION_EMAILS from .env, 2) Query from database
+    if settings.admin_notification_emails:
+        admin_emails = [e.strip() for e in settings.admin_notification_emails.split(",") if e.strip()]
+    else:
+        admin_emails = [
+            u.email
+            for u in db.query(User).filter(User.role == "admin", User.status == "active").all()
+            if u.email
+        ]
+    if admin_emails:
+        send_new_user_registration_notification(
+            admin_emails=admin_emails,
+            username=user.username,
+            display_name=user.display_name,
+            email=user.email,
+        )
+
+    return ok(
+        {
+            "id": user.id,
+            "username": user.username,
+            "status": user.status,
+            "message": "Registration submitted. Awaiting admin approval.",
+        }
+    )
+
+
+def _issue_tokens(user: User, response: Response) -> LoginResponse:
+    access_token = create_access_token(user.id, user.role)
+    refresh_token = create_refresh_token(user.id)
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        samesite="strict",
+        max_age=settings.jwt_refresh_expiry_days * 86400,
+    )
+    return LoginResponse(
+        access_token=access_token,
+        expires_in=settings.jwt_expiry_hours * 3600,
+        user=UserInfo(
+            id=user.id,
+            username=user.username,
+            display_name=user.display_name,
+            role=user.role,
+            plants=[PlantInfo(id=p.id, name=p.name) for p in user.plants],
+            processes=[ProcessInfo(id=p.id, name=p.name) for p in user.processes],
+        ),
+    )
+
+
+@router.post("/ad-login")
+@limiter.limit("5/minute")
+def ad_login(
+    request: Request,
+    body: ADLoginRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    result = authenticate_ad_user(db, body.username, body.password)
+
+    if result.status == ADAuthResult.INVALID_CREDENTIALS:
+        raise HTTPException(status_code=401, detail="Invalid Corning credentials")
+    if result.status == ADAuthResult.INACTIVE_ACCOUNT:
+        raise HTTPException(status_code=403, detail="Account is inactive. Contact an administrator.")
+
+    if result.status == ADAuthResult.PENDING_APPROVAL:
+        return ok(ADLoginPendingApproval(username=result.username).model_dump())
+
+    if result.status == ADAuthResult.NEED_REGISTRATION:
+        return ok(ADLoginNeedRegistration(username=result.username).model_dump())
+
+    assert result.user is not None
+    login_payload = _issue_tokens(result.user, response)
+    return ok(
+        ADLoginAuthenticated(
+            access_token=login_payload.access_token,
+            expires_in=login_payload.expires_in,
+            user=login_payload.user,
+        ).model_dump()
+    )
+
+
+@router.post("/ad-register", status_code=201)
+@limiter.limit("3/minute")
+def ad_register(request: Request, body: ADRegisterRequest, db: Session = Depends(get_db)):
+    from sqlalchemy.exc import IntegrityError
+
+    try:
+        user = register_ad_user(
+            db,
+            body.username,
+            body.password,
+            body.email,
+            body.display_name,
+            body.plant_ids,
+            body.process_ids,
+        )
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Corning credentials")
+    except ADRegistrationConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="Username or email already exists")
+
     if settings.admin_notification_emails:
         admin_emails = [e.strip() for e in settings.admin_notification_emails.split(",") if e.strip()]
     else:

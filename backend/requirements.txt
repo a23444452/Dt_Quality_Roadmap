@@ -11,5 +11,7 @@ openpyxl==3.1.*
 pymssql==2.3.*
 httpx==0.28.*
 slowapi==0.1.*
+ldap3==2.9.1
+pyasn1==0.5.1
 pytest==8.3.*
 pytest-asyncio==0.25.*

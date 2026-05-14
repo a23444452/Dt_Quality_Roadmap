@@ -63,13 +63,24 @@ export function GItemRowExpanded({ item, user, statuses }: Props) {
       qc.invalidateQueries({ queryKey: ['solution-map'] })
       setEditing(null)
     } catch (err) {
-      const axiosErr = err as { response?: { status?: number } }
-      if (axiosErr?.response?.status === 409) {
+      const axiosErr = err as {
+        response?: { status?: number; data?: { detail?: unknown } }
+        message?: string
+      }
+      const status = axiosErr?.response?.status
+      const detail = axiosErr?.response?.data?.detail
+      const detailText =
+        typeof detail === 'string'
+          ? detail
+          : detail !== undefined
+          ? JSON.stringify(detail)
+          : axiosErr?.message ?? 'Unknown error'
+      if (status === 409) {
         setError('Someone else updated this cell. Refresh and try again.')
-      } else if (axiosErr?.response?.status === 403) {
+      } else if (status === 403) {
         setError('Out of your permission scope.')
       } else {
-        setError('Save failed. Please try again.')
+        setError(`Save failed (${status ?? 'network'}): ${detailText}`)
       }
     }
   }
@@ -89,43 +100,56 @@ export function GItemRowExpanded({ item, user, statuses }: Props) {
           {error}
         </div>
       )}
-      <table className="text-sm border-collapse">
-        <thead>
-          <tr>
-            <th className="text-left px-2 py-1 text-xs font-semibold text-gray-600 border">Plant</th>
-            {lines.map((ln) => (
-              <th key={ln.id} className="px-2 py-1 text-xs font-semibold text-gray-600 border whitespace-nowrap">
-                {ln.name}
+      <div className="overflow-auto max-h-[60vh] border rounded bg-white">
+        <table className="text-sm border-collapse">
+          <thead className="sticky top-0 bg-gray-100 z-10">
+            <tr>
+              <th className="text-left px-2 py-1 text-xs font-semibold text-gray-600 border sticky left-0 bg-gray-100 z-20 whitespace-nowrap">
+                Plant
               </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {plants.map((p) => (
-            <tr key={p.id}>
-              <td className="px-2 py-1 border font-medium whitespace-nowrap">{p.name}</td>
-              {lines.map((ln) => {
-                const cell = cellMap.get(`${p.id}:${ln.id}`)
-                if (!cell) {
-                  return <td key={ln.id} className="px-2 py-1 border text-center text-gray-300">—</td>
-                }
-                const editable = canEditCell(p.id)
-                return (
-                  <td
-                    key={ln.id}
-                    className={`px-2 py-1 border text-center ${editable ? 'cursor-pointer hover:opacity-80' : ''}`}
-                    style={{ backgroundColor: cell.status_color, color: '#fff' }}
-                    title={editable ? 'Click to edit' : 'Out of your permission scope'}
-                    onClick={() => editable && setEditing({ plantId: p.id, lineId: ln.id })}
-                  >
-                    {cell.status_code}
-                  </td>
-                )
-              })}
+              {lines.map((ln) => (
+                <th
+                  key={ln.id}
+                  className="px-2 py-1 text-xs font-semibold text-gray-600 border whitespace-nowrap"
+                >
+                  {ln.name}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {plants.map((p) => (
+              <tr key={p.id}>
+                <td className="px-2 py-1 border font-medium whitespace-nowrap sticky left-0 bg-white z-10">
+                  {p.name}
+                </td>
+                {lines.map((ln) => {
+                  const cell = cellMap.get(`${p.id}:${ln.id}`)
+                  if (!cell) {
+                    return (
+                      <td key={ln.id} className="px-2 py-1 border text-center text-gray-300">
+                        —
+                      </td>
+                    )
+                  }
+                  const editable = canEditCell(p.id)
+                  return (
+                    <td
+                      key={ln.id}
+                      className={`px-2 py-1 border text-center whitespace-nowrap ${editable ? 'cursor-pointer hover:opacity-80' : ''}`}
+                      style={{ backgroundColor: cell.status_color, color: '#fff' }}
+                      title={editable ? 'Click to edit' : 'Out of your permission scope'}
+                      onClick={() => editable && setEditing({ plantId: p.id, lineId: ln.id })}
+                    >
+                      {cell.status_code}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {editing && (
         <div className="mt-3 flex items-center gap-2">

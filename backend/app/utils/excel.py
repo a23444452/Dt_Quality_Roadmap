@@ -76,13 +76,16 @@ def parse_matrix_format(workbook: Workbook) -> list[dict]:
             status_value = row[col_idx]
             if status_value is None:
                 continue
+            status_str = str(status_value).strip() if status_value else ""
+            if not status_str:
+                continue
             records.append({
                 "solution": solution_name,
                 "defect_type": defect_type,
                 "station": station,
                 "plant": plant_name,
                 "line": line_name,
-                "status": str(status_value).strip() if status_value else None,
+                "status": status_str,
             })
     return records
 

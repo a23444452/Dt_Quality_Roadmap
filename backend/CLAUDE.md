@@ -20,3 +20,13 @@ send_notification(user_email=user.email, ...)  # 發送到錯誤地址！
 ```
 
 適用場景：disable_user, reject_user 等會修改 email 的操作
+
+## Solution Map 篩選架構
+
+| 篩選層級 | 欄位 | 來源 |
+|----------|------|------|
+| Process Category | `process.category` | Melting / Finishing / System |
+| Process | `process.name` | CBW, INSP, DP, System... |
+| Station | `station.name` | System(Overall), System(CBW)... |
+
+注意：Station 名稱含括號，如 `System(Overall)` 非 `System`

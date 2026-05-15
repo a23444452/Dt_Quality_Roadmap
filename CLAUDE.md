@@ -30,6 +30,17 @@ grep -r "舊標籤名稱" frontend/src/
 | 資料列表 | 列表頁, 詳情頁, 編輯對話框 |
 | 導航元素 | Sidebar, Header, Footer |
 
+## 前端篩選/顯示 Bug 排查順序
+
+當使用者報告「篩選 X 看不到某些資料」：
+
+1. **先查後端查詢邏輯** — `backend/app/services/` 中對應的 filter 條件
+2. **再查前端 filter 傳參** — 確認前端傳的值和後端期望一致
+3. **最後才查 DB 資料** — 只有確認邏輯正確但資料缺失時才改 DB
+
+❌ 直接改 DB schema/資料結構
+✅ 先 grep 相關 service → Read 篩選邏輯 → 定位 bug
+
 ## .env 變更後需重啟服務
 
 修改 `backend/.env` 後，必須重啟 uvicorn 才會生效。

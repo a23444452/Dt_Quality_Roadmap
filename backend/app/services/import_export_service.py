@@ -49,7 +49,13 @@ def preview_import(db: Session, file_bytes: bytes, format: str) -> dict:
 
     # Load lookup tables
     statuses_by_code = {s.code.upper(): s for s in db.query(StatusDefinition).all()}
-    solutions_by_name = {s.name.lower(): s for s in db.query(Solution).all()}
+    all_solutions = db.query(Solution).all()
+    solutions_by_name_station: dict[tuple[str, int], Solution] = {
+        (s.name.lower(), s.station_id): s for s in all_solutions
+    }
+    solutions_by_name: dict[str, list[Solution]] = {}
+    for s in all_solutions:
+        solutions_by_name.setdefault(s.name.lower(), []).append(s)
     defect_types_by_name = {dt.name.lower(): dt for dt in db.query(DefectType).all()}
     stations_by_name = {st.name.lower(): st for st in db.query(Station).all()}
     lines_by_name: dict[str, TankLine] = {}
@@ -71,6 +77,7 @@ def preview_import(db: Session, file_bytes: bytes, format: str) -> dict:
         solution_name = record.get("solution") or ""
         line_name = record.get("line") or ""
         status_code = record.get("status") or ""
+        station_name = (record.get("station") or "").strip()
 
         if not solution_name:
             errors.append({"row": row_num, "field": "solution", "message": "Solution name is required"})
@@ -87,13 +94,21 @@ def preview_import(db: Session, file_bytes: bytes, format: str) -> dict:
         if has_error:
             continue
 
-        solution = solutions_by_name.get(solution_name.lower())
+        # Match solution: prefer (name + station) composite key, fallback to name-only
+        solution: Solution | None = None
+        station_obj = stations_by_name.get(station_name.lower()) if station_name else None
+        if station_obj:
+            solution = solutions_by_name_station.get((solution_name.lower(), station_obj.id))
+        if solution is None:
+            candidates = solutions_by_name.get(solution_name.lower(), [])
+            if len(candidates) == 1:
+                solution = candidates[0]
+
         new_solution_key: str | None = None
 
         if solution is None:
             # Attempt auto-create: requires valid defect_type and station
             defect_type_name = (record.get("defect_type") or "").strip()
-            station_name = (record.get("station") or "").strip()
 
             if not defect_type_name:
                 errors.append({

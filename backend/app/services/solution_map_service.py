@@ -30,8 +30,7 @@ def get_pivot_data(
     # Filter by process_category
     if process_category:
         if process_category == "System":
-            # System: only show solutions where Process='System' AND Station='System'
-            query = query.filter(Process.name == "System", Station.name == "System")
+            query = query.filter(Process.category == "System")
         else:
             # Melting/Finishing: filter by process category
             query = query.filter(Process.category == process_category)

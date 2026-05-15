@@ -64,7 +64,7 @@ export function GItemsPage() {
       <div className="px-6 py-4 border-b bg-white">
         <h1 className="text-xl font-semibold">G$ Management</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Manage G-dollar items, their reason/remark, and coverage
+          Manage and track Goal Sharing items
         </p>
       </div>
 

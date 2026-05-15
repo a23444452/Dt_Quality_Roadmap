@@ -217,6 +217,21 @@ def test_parse_matrix_format_skips_none_status_cells():
     assert len(records) == 0
 
 
+def test_parse_matrix_format_skips_empty_string_status_cells():
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["solution", "defect_type", "station", "Main Factory | Line A", "Main Factory | Line B"])
+    ws.append(["Polish Surface", "Scratch", "Dip Tank", "MP", ""])  # Line B is empty string
+    ws.append(["Coating Fix", "Bubble", "Spray", "DEVELOPING", "  "])  # Line B is whitespace
+
+    records = parse_matrix_format(wb)
+    assert len(records) == 2
+    assert records[0]["status"] == "MP"
+    assert records[0]["line"] == "Line A"
+    assert records[1]["status"] == "DEVELOPING"
+    assert records[1]["line"] == "Line A"
+
+
 # ─── Unit tests: generate_list_export ─────────────────────────────────────────
 
 def test_generate_list_export_produces_valid_xlsx():

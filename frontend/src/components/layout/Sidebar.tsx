@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Mail,
   DollarSign,
+  TrendingUp,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
@@ -38,6 +39,7 @@ const mainNavItems: NavItem[] = [
 
 const managementNavItems: NavItem[] = [
   { label: 'G$ Management', icon: DollarSign, to: '/admin/g-items' },
+  { label: 'G$ Tracking', icon: TrendingUp, to: '/admin/g-tracking' },
 ]
 
 interface SidebarNavItemProps {

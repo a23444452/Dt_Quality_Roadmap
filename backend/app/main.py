@@ -19,6 +19,7 @@ from app.routers.solutions import router as solutions_router
 from app.routers.solution_map import router as solution_map_router
 from app.routers.import_export import router as import_export_router
 from app.routers.g_items import router as g_items_router
+from app.routers.g_tracking import router as g_tracking_router
 
 IMPORT_TEMP_DIR = Path("tmp/imports")
 IMPORT_TTL_SECONDS = 15 * 60
@@ -50,6 +51,7 @@ app.include_router(solutions_router)
 app.include_router(solution_map_router)
 app.include_router(import_export_router)
 app.include_router(g_items_router)
+app.include_router(g_tracking_router)
 app.include_router(users.router)
 
 

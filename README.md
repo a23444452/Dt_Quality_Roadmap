@@ -63,6 +63,15 @@
   - **Solution Details 卡片** — 右側 1/2 寬度，點擊 Summary Table 的 Solutions 數字後顯示該 Station 的所有 Solution
   - **MP Tank/Lines 資訊** — Solution Details 內每個 Solution 顯示已 MP 到哪些 Tank/Lines（依選擇的 Plant 篩選）
 
+### G$ Management
+- **G$ Items 管理** — 標記 Solution 為 G$ Item，管理 Goal Sharing 項目
+- **G$ Tracking 追蹤** — 2026 年度 Goal Sharing 完成狀態追蹤儀表板
+  - **Item Tracking List** — 顯示所有 D^t class 的 G$ Solution 狀態（Complete / Not Complete）
+  - **Cumulative Completion Chart** — 月度累計完成數 vs Budget / Stretch 目標趨勢圖
+  - **Retrofit view** — 水平條形圖按 Category 分類顯示完成 / 未完成數量
+  - **Plant view** — 各工廠堆疊柱狀圖（完成/未完成）搭配 Budget / Stretch 目標線
+  - **資料來源** — 讀取 `Quality Roadmap G$ database_Fin_BOD_Dt.xlsx`，Excel 更新後重整頁面即自動反映
+
 ### Admin 管理後台
 - **用戶管理** — 審核新用戶註冊 (Approve/Reject)、停用帳號、重設密碼
 - **狀態篩選** — User Management 提供 5 個分頁：All / Pending / Active / Disabled / Rejected
@@ -1003,6 +1012,8 @@ curl http://your-server/api/v1/dashboard/summary \
 | `/api/v1/import-export/import/confirm` | POST | 確認匯入 | Editor+ |
 | `/api/v1/import-export/export` | GET | 匯出 Excel | Viewer+ |
 | `/api/v1/import-export/template` | GET | 下載匯入範本 | Public |
+| `/api/v1/g-items` | CRUD | G$ Items 管理 | GET: Viewer+ / Write: Admin |
+| `/api/v1/g-tracking/data` | GET | G$ Tracking 圖表資料（讀取 Excel） | Viewer+ |
 | `/api/v1/users` | GET | 用戶列表 | Admin |
 | `/api/v1/users/{id}/approve` | PUT | 審核通過 | Admin |
 | `/api/v1/users/{id}/reject` | PUT | 審核拒絕 | Admin |
@@ -1049,6 +1060,8 @@ Dt_Quality_Roadmap/
 │   │   │   ├── process-map/        # 生產線流程圖 (蛇形佈局)
 │   │   │   ├── data-management/    # 9 Tab CRUD (含 Plant/Process/DefectCategory)
 │   │   │   ├── analysis/           # 缺陷/製程分析
+│   │   │   ├── g-items/            # G$ Management 管理頁面
+│   │   │   ├── g-tracking/         # G$ Tracking 追蹤圖表
 │   │   │   └── admin/              # 用戶管理 + 系統設定
 │   │   ├── hooks/                  # useSolutionMap, useReferenceData
 │   │   ├── lib/                    # API Client, Query Client
@@ -1536,6 +1549,7 @@ npx tsc --noEmit
 - `D^t Solution Quality Roadmap.xlsx` — **主要資料來源** (包含完整的 Tank/Line、Solution、Status 定義)
 - `Dt_Solution_Map_for_QA_New0126.pbit` — Power BI 範本
 - `Dt_Solution_Map_for_QA_New0126.pbix` — Power BI 報表
+- `Quality Roadmap G$ database_Fin_BOD_Dt.xlsx` — G$ Tracking 資料來源 (2026 年度 Goal Sharing)
 - `TC Finishing D^t Solution Migration_2026.xlsx` — Excel 原始資料 (舊版)
 
 ### Excel 資料結構 (D^t Solution Quality Roadmap.xlsx)

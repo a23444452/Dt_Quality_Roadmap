@@ -221,7 +221,9 @@ export function PivotTable({ solutions, lines, statuses, canEdit, user }: PivotT
         <StatusCellEditor
           open={true}
           onClose={() => setSelected(null)}
+          solutionId={selected.solution.id}
           solutionName={selected.solution.name}
+          tankLineId={selected.line.id}
           lineName={selected.line.name}
           lineKey={selected.line.key}
           current={selected.current}

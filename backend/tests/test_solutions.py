@@ -183,7 +183,7 @@ def test_update_solution(client):
     assert update_resp.json()["data"]["name"] == "Updated Name"
 
 
-def test_soft_delete_as_admin(client):
+def test_hard_delete_as_admin(client):
     editor_tok = _create_user(client, "editor", "editoruser")
     editor_hdrs = {"Authorization": f"Bearer {editor_tok}"}
     ref = _setup_reference_data(client)
@@ -200,11 +200,11 @@ def test_soft_delete_as_admin(client):
     admin_hdrs = {"Authorization": f"Bearer {admin_tok}"}
     del_resp = client.delete(f"/api/v1/solutions/{item_id}", headers=admin_hdrs)
     assert del_resp.status_code == 200
-    assert del_resp.json()["data"]["is_active"] is False
+    assert del_resp.json()["data"]["deleted"] is True
 
-    # Confirm the item is now inactive
+    # Confirm the item is gone (404)
     get_resp = client.get(f"/api/v1/solutions/{item_id}", headers=admin_hdrs)
-    assert get_resp.json()["data"]["is_active"] is False
+    assert get_resp.status_code == 404
 
 
 def test_soft_delete_as_editor_forbidden(client):

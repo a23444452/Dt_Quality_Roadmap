@@ -42,7 +42,7 @@ def get_pivot_data(
     if defect_category_id:
         query = query.filter(DefectCategory.id == defect_category_id)
 
-    solutions = query.all()
+    solutions = query.order_by(Station.sort_order, Solution.name).all()
 
     # Get lines - filter by line_type based on process_category
     line_query = (

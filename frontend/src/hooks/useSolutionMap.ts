@@ -31,3 +31,21 @@ export function useUpdateSolutionMap() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['solution-map'] }),
   })
 }
+
+export function useCreateSolutionMap() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: {
+      solution_id: number
+      tank_line_id: number
+      status_id: number
+      notes?: string
+    }) => {
+      const resp = await apiClient.post('/solution-map/batch', {
+        updates: [data],
+      })
+      return resp.data
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['solution-map'] }),
+  })
+}

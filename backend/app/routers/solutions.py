@@ -7,7 +7,9 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user, require_role
+from app.models.process import Station
 from app.models.solution import Solution
+from app.models.solution_map import SolutionMap
 from app.models.user import User
 from app.schemas.common import ok
 from app.schemas.solution import SolutionCreate, SolutionResponse, SolutionUpdate
@@ -29,7 +31,7 @@ def list_solutions(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    query = db.query(Solution)
+    query = db.query(Solution).join(Station, Solution.station_id == Station.id)
     if is_active is not None:
         query = query.filter(Solution.is_active == is_active)
     if defect_type_id is not None:
@@ -37,7 +39,7 @@ def list_solutions(
     if station_id is not None:
         query = query.filter(Solution.station_id == station_id)
 
-    items = query.order_by(Solution.sort_order).all()
+    items = query.order_by(Station.sort_order, Solution.sort_order).all()
     return ok([SolutionResponse.model_validate(i).model_dump() for i in items])
 
 
@@ -97,10 +99,19 @@ def delete_solution(
     if item is None:
         raise HTTPException(status_code=404, detail="Not found")
 
-    item.is_active = False
-    item.updated_by = user.id
+    # Delete related solution_map entries first
+    db.query(SolutionMap).filter(SolutionMap.solution_id == item_id).delete()
+
+    # Delete document file if exists
+    if item.document_path and os.path.exists(item.document_path):
+        try:
+            os.remove(item.document_path)
+        except OSError:
+            pass
+
+    db.delete(item)
     db.commit()
-    return ok({"id": item_id, "is_active": False})
+    return ok({"id": item_id, "deleted": True})
 
 
 @router.post("/{item_id}/document")

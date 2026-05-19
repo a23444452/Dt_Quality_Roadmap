@@ -335,7 +335,7 @@ def generate_export(
     if plant_id is not None:
         query = query.filter(Plant.id == plant_id)
 
-    rows = query.all()
+    rows = query.order_by(Station.sort_order, Solution.name).all()
 
     # Re-fetch statuses to get code
     status_map = {s.id: s.code for s in db.query(StatusDefinition).all()}
@@ -365,7 +365,7 @@ def generate_export(
     if process_id is not None:
         unmapped_query = unmapped_query.filter(Process.id == process_id)
 
-    for sol, dtype, sta, proc in unmapped_query.all():
+    for sol, dtype, sta, proc in unmapped_query.order_by(Station.sort_order, Solution.name).all():
         if sol.id in mapped_solution_ids:
             continue
         records.append({

@@ -9,12 +9,14 @@ import {
 import { Button } from '@/components/ui/button'
 import type { SolutionMapStatus } from '@/types/solution-map'
 import type { Status } from '@/types/reference-data'
-import { useUpdateSolutionMap } from '@/hooks/useSolutionMap'
+import { useUpdateSolutionMap, useCreateSolutionMap } from '@/hooks/useSolutionMap'
 
 interface StatusCellEditorProps {
   open: boolean
   onClose: () => void
+  solutionId: number
   solutionName: string
+  tankLineId: number
   lineName: string
   lineKey: string
   current: SolutionMapStatus | null
@@ -24,7 +26,9 @@ interface StatusCellEditorProps {
 export function StatusCellEditor({
   open,
   onClose,
+  solutionId,
   solutionName,
+  tankLineId,
   lineName,
   lineKey,
   current,
@@ -35,15 +39,26 @@ export function StatusCellEditor({
   const [conflictError, setConflictError] = useState<string | null>(null)
 
   const updateMutation = useUpdateSolutionMap()
+  const createMutation = useCreateSolutionMap()
+
+  const isSaving = updateMutation.isPending || createMutation.isPending
 
   async function handleSave() {
-    if (!current) return
     setConflictError(null)
     try {
-      await updateMutation.mutateAsync({
-        mapId: current.map_id,
-        data: { status_id: statusId, notes: notes || undefined, version: current.version },
-      })
+      if (current) {
+        await updateMutation.mutateAsync({
+          mapId: current.map_id,
+          data: { status_id: statusId, notes: notes || undefined, version: current.version },
+        })
+      } else {
+        await createMutation.mutateAsync({
+          solution_id: solutionId,
+          tank_line_id: tankLineId,
+          status_id: statusId,
+          notes: notes || undefined,
+        })
+      }
       onClose()
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number } }
@@ -108,11 +123,11 @@ export function StatusCellEditor({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={updateMutation.isPending}>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={updateMutation.isPending || !current}>
-            {updateMutation.isPending ? 'Saving...' : 'Save'}
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>

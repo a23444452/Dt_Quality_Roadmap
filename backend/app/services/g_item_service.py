@@ -62,7 +62,7 @@ def list_g_items(
     if search:
         query = query.filter(Solution.name.ilike(f"%{search}%"))
 
-    query = query.order_by(Solution.name)
+    query = query.order_by(Station.sort_order, Solution.name)
 
     total = query.count()
     rows = query.offset((page - 1) * limit).limit(limit).all()

@@ -1,9 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Mail } from 'lucide-react'
 import { useAuth } from './AuthContext'
-import { ADFirstTimeRegisterDialog } from './ADFirstTimeRegisterDialog'
+import { SSOFirstTimeRegisterDialog } from './SSOFirstTimeRegisterDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,30 +15,31 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Separator } from '@/components/ui/separator'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
 
 export function LoginPage() {
-  const { login, adLogin } = useAuth()
+  const { ssoLogin, login } = useAuth()
   const navigate = useNavigate()
 
-  const [adUsername, setAdUsername] = useState('')
-  const [adPassword, setAdPassword] = useState('')
-  const [adError, setAdError] = useState<string | null>(null)
-  const [adSubmitting, setAdSubmitting] = useState(false)
-  const [adInfo, setAdInfo] = useState<string | null>(null)
+  const [ssoError, setSsoError] = useState<string | null>(null)
+  const [ssoLoading, setSsoLoading] = useState(false)
+  const [ssoInfo, setSsoInfo] = useState<string | null>(null)
 
   const [localUsername, setLocalUsername] = useState('')
   const [localPassword, setLocalPassword] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
   const [localSubmitting, setLocalSubmitting] = useState(false)
 
-  const [registerDialog, setRegisterDialog] = useState<{ open: boolean; ntAccount: string; password: string }>({
-    open: false,
-    ntAccount: '',
-    password: '',
-  })
+  const [registerDialog, setRegisterDialog] = useState<{
+    open: boolean
+    idToken: string
+    username: string
+    email: string
+    displayName: string
+  }>({ open: false, idToken: '', username: '', email: '', displayName: '' })
+
   const [registerSuccess, setRegisterSuccess] = useState<string | null>(null)
 
   const { data: systemConfig } = useQuery({
@@ -50,35 +51,54 @@ export function LoginPage() {
     staleTime: 300000,
   })
 
-  const handleADSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setAdError(null)
-    setAdInfo(null)
-    setAdSubmitting(true)
+  useEffect(() => {
+    const idToken = localStorage.getItem('sso_id_token')
+    if (!idToken) return
+
+    setSsoLoading(true)
+    ssoLogin()
+      .then((result) => {
+        if (result.status === 'authenticated') {
+          navigate('/', { replace: true })
+        } else if (result.status === 'pending_approval') {
+          setSsoInfo('Your account is awaiting administrator approval.')
+        } else if (result.status === 'need_registration') {
+          setRegisterDialog({
+            open: true,
+            idToken,
+            username: result.username,
+            email: result.email,
+            displayName: result.display_name,
+          })
+        }
+      })
+      .catch((err) => {
+        const axiosError = err as { response?: { status?: number; data?: { detail?: string } } }
+        if (axiosError.response?.status === 401) {
+          setSsoError('SSO verification failed. Please sign in again.')
+        } else if (axiosError.response?.status === 503) {
+          setSsoError('Service temporarily unavailable. Please try again.')
+        } else if (err instanceof Error && err.message === 'Redirecting to Azure AD') {
+          // Expected
+        } else {
+          setSsoError('Sign-in failed. Please try again.')
+        }
+      })
+      .finally(() => setSsoLoading(false))
+  }, [ssoLogin, navigate])
+
+  const handleSSOClick = async () => {
+    setSsoError(null)
+    setSsoInfo(null)
+    setSsoLoading(true)
     try {
-      const result = await adLogin({ username: adUsername, password: adPassword })
-      if (result.status === 'authenticated') {
-        navigate('/', { replace: true })
-        return
-      }
-      if (result.status === 'pending_approval') {
-        setAdInfo('Your account is awaiting administrator approval.')
-        return
-      }
-      if (result.status === 'need_registration') {
-        setRegisterDialog({ open: true, ntAccount: result.username, password: adPassword })
-      }
+      await ssoLogin()
     } catch (err) {
-      const axiosError = err as { response?: { status?: number; data?: { detail?: string } } }
-      if (axiosError.response?.status === 401) {
-        setAdError('Invalid Corning credentials. Please try again.')
-      } else if (axiosError.response?.status === 403) {
-        setAdError(axiosError.response.data?.detail ?? 'Account is not active.')
-      } else {
-        setAdError('Sign-in failed. Please try again.')
+      if (err instanceof Error && err.message === 'Redirecting to Azure AD') {
+        return
       }
-    } finally {
-      setAdSubmitting(false)
+      setSsoError('Sign-in failed. Please try again.')
+      setSsoLoading(false)
     }
   }
 
@@ -97,8 +117,7 @@ export function LoginPage() {
   }
 
   const handleRegistrationSubmitted = (message: string) => {
-    setRegisterDialog({ open: false, ntAccount: '', password: '' })
-    setAdPassword('')
+    setRegisterDialog({ open: false, idToken: '', username: '', email: '', displayName: '' })
     setRegisterSuccess(message)
   }
 
@@ -130,113 +149,96 @@ export function LoginPage() {
           <CardDescription>Access D^t Solution Roadmap</CardDescription>
         </CardHeader>
 
-        <CardContent>
-          <Tabs defaultValue="ad" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="ad">Corning AD</TabsTrigger>
-              <TabsTrigger value="local">Local Account</TabsTrigger>
-            </TabsList>
+        <CardContent className="space-y-4">
+          {ssoError && (
+            <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+              {ssoError}
+            </div>
+          )}
+          {ssoInfo && (
+            <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded-md">
+              {ssoInfo}
+            </div>
+          )}
 
-            <TabsContent value="ad" className="mt-4">
-              <form onSubmit={handleADSubmit} className="space-y-4">
-                {adError && (
-                  <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                    {adError}
-                  </div>
-                )}
-                {adInfo && (
-                  <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded-md">
-                    {adInfo}
-                  </div>
-                )}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleSSOClick}
+            disabled={ssoLoading}
+          >
+            <svg className="mr-2 h-4 w-4" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+              <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+              <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+              <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+            </svg>
+            {ssoLoading ? 'Signing in...' : 'Sign in with Microsoft'}
+          </Button>
 
-                <div className="space-y-2">
-                  <Label htmlFor="ad-username">NT Account</Label>
-                  <Input
-                    id="ad-username"
-                    type="text"
-                    autoComplete="username"
-                    required
-                    placeholder="e.g. wangm44"
-                    value={adUsername}
-                    onChange={(e) => setAdUsername(e.target.value)}
-                  />
-                </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <Separator className="w-full" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">or</span>
+            </div>
+          </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="ad-password">Corning Password</Label>
-                  <Input
-                    id="ad-password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={adPassword}
-                    onChange={(e) => setAdPassword(e.target.value)}
-                  />
-                </div>
+          <form onSubmit={handleLocalSubmit} className="space-y-4">
+            {localError && (
+              <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+                {localError}
+              </div>
+            )}
 
-                <Button type="submit" className="w-full" disabled={adSubmitting}>
-                  {adSubmitting ? 'Signing in...' : 'Sign In with Corning AD'}
-                </Button>
-              </form>
-            </TabsContent>
+            <div className="space-y-2">
+              <Label htmlFor="local-username">Username</Label>
+              <Input
+                id="local-username"
+                type="text"
+                autoComplete="username"
+                required
+                value={localUsername}
+                onChange={(e) => setLocalUsername(e.target.value)}
+              />
+            </div>
 
-            <TabsContent value="local" className="mt-4">
-              <form onSubmit={handleLocalSubmit} className="space-y-4">
-                {localError && (
-                  <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                    {localError}
-                  </div>
-                )}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="local-password">Password</Label>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <Input
+                id="local-password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={localPassword}
+                onChange={(e) => setLocalPassword(e.target.value)}
+              />
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="local-username">NT Account</Label>
-                  <Input
-                    id="local-username"
-                    type="text"
-                    autoComplete="username"
-                    required
-                    value={localUsername}
-                    onChange={(e) => setLocalUsername(e.target.value)}
-                  />
-                </div>
+            <Button type="submit" className="w-full" disabled={localSubmitting}>
+              {localSubmitting ? 'Signing in...' : 'Sign In'}
+            </Button>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="local-password">Password</Label>
-                    <Link
-                      to="/forgot-password"
-                      className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
-                    >
-                      Forgot password?
-                    </Link>
-                  </div>
-                  <Input
-                    id="local-password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={localPassword}
-                    onChange={(e) => setLocalPassword(e.target.value)}
-                  />
-                </div>
-
-                <Button type="submit" className="w-full" disabled={localSubmitting}>
-                  {localSubmitting ? 'Signing in...' : 'Sign In'}
-                </Button>
-
-                <p className="text-sm text-muted-foreground text-center">
-                  Don&apos;t have an account?{' '}
-                  <Link
-                    to="/register"
-                    className="text-foreground underline-offset-4 hover:underline font-medium"
-                  >
-                    Register
-                  </Link>
-                </p>
-              </form>
-            </TabsContent>
-          </Tabs>
+            <p className="text-sm text-muted-foreground text-center">
+              Don&apos;t have an account?{' '}
+              <Link
+                to="/register"
+                className="text-foreground underline-offset-4 hover:underline font-medium"
+              >
+                Register
+              </Link>
+            </p>
+          </form>
         </CardContent>
 
         {systemConfig?.admin_emails && systemConfig.admin_emails.length > 0 && (
@@ -258,12 +260,14 @@ export function LoginPage() {
         )}
       </Card>
 
-      <ADFirstTimeRegisterDialog
+      <SSOFirstTimeRegisterDialog
         open={registerDialog.open}
-        ntAccount={registerDialog.ntAccount}
-        password={registerDialog.password}
+        idToken={registerDialog.idToken}
+        username={registerDialog.username}
+        email={registerDialog.email}
+        displayName={registerDialog.displayName}
         onSubmitted={handleRegistrationSubmitted}
-        onCancel={() => setRegisterDialog({ open: false, ntAccount: '', password: '' })}
+        onCancel={() => setRegisterDialog({ open: false, idToken: '', username: '', email: '', displayName: '' })}
       />
     </div>
   )

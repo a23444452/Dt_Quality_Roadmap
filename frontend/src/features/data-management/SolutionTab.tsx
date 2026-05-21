@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { FileText, Upload, Trash2, Download } from 'lucide-react'
+import { FileText, Upload, Trash2 } from 'lucide-react'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
 import { useAuth } from '@/features/auth/AuthContext'
@@ -75,11 +75,6 @@ interface SolutionForm {
 
 const EMPTY_FORM: SolutionForm = { name: '', defect_type_id: '', station_id: '', quality_attribute: '', description: '', sort_order: 0, is_g_item: false, is_active: true }
 
-function getFileIcon(filename: string | null) {
-  if (!filename) return null
-  const ext = filename.split('.').pop()?.toLowerCase()
-  return ext
-}
 
 export function SolutionTab() {
   const qc = useQueryClient()

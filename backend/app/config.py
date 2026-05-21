@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_sender: str = ""  # Email sender address (default: DtRoadmap@corning.com)
     admin_notification_emails: str = ""  # Comma-separated admin emails for notifications (if empty, query from DB)
+    azure_ad_client_id: str = ""
+    azure_ad_tenant_id: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

@@ -1,6 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useMsal } from '@azure/msal-react'
+import { InteractionStatus } from '@azure/msal-browser'
 import { Mail } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { SSOFirstTimeRegisterDialog } from './SSOFirstTimeRegisterDialog'
@@ -21,6 +23,7 @@ import type { ApiResponse } from '@/types/api'
 
 export function LoginPage() {
   const { ssoLogin, login } = useAuth()
+  const { inProgress } = useMsal()
   const navigate = useNavigate()
 
   const [ssoError, setSsoError] = useState<string | null>(null)
@@ -34,11 +37,10 @@ export function LoginPage() {
 
   const [registerDialog, setRegisterDialog] = useState<{
     open: boolean
-    idToken: string
     username: string
     email: string
     displayName: string
-  }>({ open: false, idToken: '', username: '', email: '', displayName: '' })
+  }>({ open: false, username: '', email: '', displayName: '' })
 
   const [registerSuccess, setRegisterSuccess] = useState<string | null>(null)
 
@@ -52,8 +54,9 @@ export function LoginPage() {
   })
 
   useEffect(() => {
-    const idToken = localStorage.getItem('sso_id_token')
-    if (!idToken) return
+    if (inProgress !== InteractionStatus.None) return
+    if (!sessionStorage.getItem('sso_redirect_pending')) return
+    sessionStorage.removeItem('sso_redirect_pending')
 
     setSsoLoading(true)
     ssoLogin()
@@ -65,7 +68,6 @@ export function LoginPage() {
         } else if (result.status === 'need_registration') {
           setRegisterDialog({
             open: true,
-            idToken,
             username: result.username,
             email: result.email,
             displayName: result.display_name,
@@ -76,6 +78,8 @@ export function LoginPage() {
         const axiosError = err as { response?: { status?: number; data?: { detail?: string } } }
         if (axiosError.response?.status === 401) {
           setSsoError('SSO verification failed. Please sign in again.')
+        } else if (axiosError.response?.status === 403) {
+          setSsoError('Access denied. You are not a member of the required AD group.')
         } else if (axiosError.response?.status === 503) {
           setSsoError('Service temporarily unavailable. Please try again.')
         } else if (err instanceof Error && err.message === 'Redirecting to Azure AD') {
@@ -85,19 +89,37 @@ export function LoginPage() {
         }
       })
       .finally(() => setSsoLoading(false))
-  }, [ssoLogin, navigate])
+  }, [inProgress, ssoLogin, navigate])
 
   const handleSSOClick = async () => {
     setSsoError(null)
     setSsoInfo(null)
     setSsoLoading(true)
     try {
-      await ssoLogin()
+      const result = await ssoLogin()
+      if (result.status === 'authenticated') {
+        navigate('/', { replace: true })
+      } else if (result.status === 'pending_approval') {
+        setSsoInfo('Your account is awaiting administrator approval.')
+      } else if (result.status === 'need_registration') {
+        setRegisterDialog({
+          open: true,
+          username: result.username,
+          email: result.email,
+          displayName: result.display_name,
+        })
+      }
     } catch (err) {
       if (err instanceof Error && err.message === 'Redirecting to Azure AD') {
         return
       }
-      setSsoError('Sign-in failed. Please try again.')
+      const axiosError = err as { response?: { status?: number } }
+      if (axiosError.response?.status === 403) {
+        setSsoError('Access denied. You are not a member of the required AD group.')
+      } else {
+        setSsoError('Sign-in failed. Please try again.')
+      }
+    } finally {
       setSsoLoading(false)
     }
   }
@@ -117,7 +139,7 @@ export function LoginPage() {
   }
 
   const handleRegistrationSubmitted = (message: string) => {
-    setRegisterDialog({ open: false, idToken: '', username: '', email: '', displayName: '' })
+    setRegisterDialog({ open: false, username: '', email: '', displayName: '' })
     setRegisterSuccess(message)
   }
 
@@ -262,12 +284,11 @@ export function LoginPage() {
 
       <SSOFirstTimeRegisterDialog
         open={registerDialog.open}
-        idToken={registerDialog.idToken}
         username={registerDialog.username}
         email={registerDialog.email}
         displayName={registerDialog.displayName}
         onSubmitted={handleRegistrationSubmitted}
-        onCancel={() => setRegisterDialog({ open: false, idToken: '', username: '', email: '', displayName: '' })}
+        onCancel={() => setRegisterDialog({ open: false, username: '', email: '', displayName: '' })}
       />
     </div>
   )

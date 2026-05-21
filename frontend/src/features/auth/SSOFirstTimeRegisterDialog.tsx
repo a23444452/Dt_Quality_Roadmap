@@ -27,7 +27,6 @@ interface ReferenceOptions {
 
 interface Props {
   open: boolean
-  idToken: string
   username: string
   email: string
   displayName: string
@@ -37,7 +36,6 @@ interface Props {
 
 export function SSOFirstTimeRegisterDialog({
   open,
-  idToken,
   username,
   email,
   displayName,
@@ -92,7 +90,6 @@ export function SSOFirstTimeRegisterDialog({
     setIsSubmitting(true)
     try {
       const message = await ssoRegister({
-        id_token: idToken,
         plant_ids: plantIds,
         process_ids: processIds,
       })

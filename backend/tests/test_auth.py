@@ -113,15 +113,16 @@ def test_login_pending_user(client):
     assert resp.status_code == 401
 
 
-@patch("app.routers.auth.verify_azure_id_token")
-def test_sso_login_new_user(mock_verify, client):
+@patch("app.routers.auth.check_ad_group_membership", return_value=True)
+@patch("app.routers.auth.verify_azure_access_token")
+def test_sso_login_new_user(mock_verify, mock_group, client):
     mock_verify.return_value = {
-        "preferred_username": "newuser@corning.com",
+        "upn": "newuser@corning.com",
         "email": "newuser@corning.com",
         "name": "New User",
         "sub": "azure-sub-id",
     }
-    resp = client.post("/api/v1/auth/sso-login", json={"id_token": "fake-token"})
+    resp = client.post("/api/v1/auth/sso-login", json={"access_token": "fake-token"})
     assert resp.status_code == 200
     data = resp.json()
     assert data["success"] is True
@@ -130,15 +131,16 @@ def test_sso_login_new_user(mock_verify, client):
     assert data["data"]["email"] == "newuser@corning.com"
 
 
-@patch("app.routers.auth.verify_azure_id_token")
-def test_sso_login_active_user(mock_verify, client, active_user):
+@patch("app.routers.auth.check_ad_group_membership", return_value=True)
+@patch("app.routers.auth.verify_azure_access_token")
+def test_sso_login_active_user(mock_verify, mock_group, client, active_user):
     mock_verify.return_value = {
-        "preferred_username": "testuser@corning.com",
+        "upn": "testuser@corning.com",
         "email": "test@example.com",
         "name": "Test User",
         "sub": "azure-sub-id",
     }
-    resp = client.post("/api/v1/auth/sso-login", json={"id_token": "fake-token"})
+    resp = client.post("/api/v1/auth/sso-login", json={"access_token": "fake-token"})
     assert resp.status_code == 200
     data = resp.json()
     assert data["success"] is True
@@ -147,8 +149,9 @@ def test_sso_login_active_user(mock_verify, client, active_user):
     assert data["data"]["user"]["username"] == "testuser"
 
 
-@patch("app.routers.auth.verify_azure_id_token")
-def test_sso_login_pending_user(mock_verify, client):
+@patch("app.routers.auth.check_ad_group_membership", return_value=True)
+@patch("app.routers.auth.verify_azure_access_token")
+def test_sso_login_pending_user(mock_verify, mock_group, client):
     client.post("/api/v1/auth/register", json={
         "username": "pendingsso",
         "email": "pending@corning.com",
@@ -156,35 +159,49 @@ def test_sso_login_pending_user(mock_verify, client):
         "display_name": "Pending User",
     })
     mock_verify.return_value = {
-        "preferred_username": "pendingsso@corning.com",
+        "upn": "pendingsso@corning.com",
         "email": "pending@corning.com",
         "name": "Pending User",
         "sub": "azure-sub-id",
     }
-    resp = client.post("/api/v1/auth/sso-login", json={"id_token": "fake-token"})
+    resp = client.post("/api/v1/auth/sso-login", json={"access_token": "fake-token"})
     assert resp.status_code == 200
     data = resp.json()
     assert data["data"]["status"] == "pending_approval"
 
 
-@patch("app.routers.auth.verify_azure_id_token")
+@patch("app.routers.auth.verify_azure_access_token")
 def test_sso_login_invalid_token(mock_verify, client):
     from app.utils.azure_ad import AzureADTokenError
     mock_verify.side_effect = AzureADTokenError("Invalid or expired SSO token")
-    resp = client.post("/api/v1/auth/sso-login", json={"id_token": "bad-token"})
+    resp = client.post("/api/v1/auth/sso-login", json={"access_token": "bad-token"})
     assert resp.status_code == 401
 
 
-@patch("app.routers.auth.verify_azure_id_token")
-def test_sso_register_success(mock_verify, client):
+@patch("app.routers.auth.check_ad_group_membership", return_value=False)
+@patch("app.routers.auth.verify_azure_access_token")
+def test_sso_login_not_in_ad_group(mock_verify, mock_group, client):
     mock_verify.return_value = {
-        "preferred_username": "ssouser@corning.com",
+        "upn": "outsider@corning.com",
+        "name": "Outsider",
+        "sub": "azure-sub-id",
+    }
+    resp = client.post("/api/v1/auth/sso-login", json={"access_token": "fake-token"})
+    assert resp.status_code == 403
+    assert "AD group" in resp.json()["detail"]
+
+
+@patch("app.routers.auth.check_ad_group_membership", return_value=True)
+@patch("app.routers.auth.verify_azure_access_token")
+def test_sso_register_success(mock_verify, mock_group, client):
+    mock_verify.return_value = {
+        "upn": "ssouser@corning.com",
         "email": "ssouser@corning.com",
         "name": "SSO User",
         "sub": "azure-sub-id",
     }
     resp = client.post("/api/v1/auth/sso-register", json={
-        "id_token": "fake-token",
+        "access_token": "fake-token",
         "plant_ids": [],
         "process_ids": [],
     })
@@ -195,16 +212,17 @@ def test_sso_register_success(mock_verify, client):
     assert data["data"]["username"] == "ssouser"
 
 
-@patch("app.routers.auth.verify_azure_id_token")
-def test_sso_register_duplicate(mock_verify, client, active_user):
+@patch("app.routers.auth.check_ad_group_membership", return_value=True)
+@patch("app.routers.auth.verify_azure_access_token")
+def test_sso_register_duplicate(mock_verify, mock_group, client, active_user):
     mock_verify.return_value = {
-        "preferred_username": "testuser@corning.com",
+        "upn": "testuser@corning.com",
         "email": "test@example.com",
         "name": "Test User",
         "sub": "azure-sub-id",
     }
     resp = client.post("/api/v1/auth/sso-register", json={
-        "id_token": "fake-token",
+        "access_token": "fake-token",
         "plant_ids": [],
         "process_ids": [],
     })

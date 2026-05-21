@@ -83,18 +83,18 @@
 - **系統設定** — 管理狀態定義 (Status Definition) 的名稱、色碼
 
 ### 身份驗證與授權
-- **雙登入模式** — 登入頁面以 Tabs 分為 **Corning AD** 與 **Local Account**，Corning AD 為預設
-- **Corning AD 登入** — 使用 NT 帳號 + 公司密碼，透過 LDAP 向 `ap.corning.com` 驗證
-  - 首次 AD 登入若系統尚無此帳號，跳出視窗補填 Name/Email 與 Plant/Process（可複選），送出後進入 Pending 等 Admin 審核
-  - AD 帳號不儲存公司密碼，每次登入都即時驗證
+- **Azure AD SSO（推薦）** — 點擊「Sign in with Microsoft」按鈕，透過 MSAL.js + PKCE 完成 Azure AD 登入
+  - 後端驗證 Access Token 簽章（RS256 / JWKS）
+  - 驗證通過後，透過 LDAP 查詢使用者是否屬於 `Quality-Roadmap-Access` AD Group
+  - 不在群組 → 403 拒絕；首次登入若系統無此帳號 → 彈出視窗補填 Plant/Process，送出後進入 Pending 等 Admin 審核
   - Username 比對為 case-insensitive，避免大小寫不一致造成重複帳號
-- **本地帳號** — 帳號密碼登入，密碼以 bcrypt 雜湊儲存
+- **本地帳號** — 帳號密碼登入，密碼以 bcrypt 雜湊儲存（適用無 Azure AD 的外部人員或測試）
 - **註冊審核制** — 新用戶註冊後需管理員審核通過才能使用
 - **Plant/Process 選擇** — 註冊時選擇所屬 Plant 與 Process，決定可編輯的資料範圍
 - **JWT Token** — Access Token (8hr) + Refresh Token (7 天, HttpOnly Cookie)
 - **角色權限** — Viewer (唯讀) / Editor (編輯) / Admin (管理)
 - **Cell-level 權限** — Editor 只能編輯自己 Plant 和 Process 範圍內的 Solution Map
-- **密碼重設** — Email 重設連結 + 管理員手動重設（僅適用本地帳號；AD 帳號密碼由公司 IT 管理）
+- **密碼重設** — Email 重設連結 + 管理員手動重設（僅適用本地帳號）
 
 ---
 
@@ -878,20 +878,30 @@ Body: {
 
 ### 新增使用者
 
-#### 方式一：Corning AD 登入（推薦 Corning 員工使用）
+#### 前置作業（新使用者必須先完成）
 
-1. 登入頁面切換到 **Corning AD** Tab（預設）
-2. 輸入 NT 帳號（例如 `wangm44`，不需加 `@corning.com`）與 Corning 密碼
+使用 Azure AD SSO 登入前，新使用者需完成以下申請：
+
+| # | 項目 | 負責人 | 說明 |
+|---|------|--------|------|
+| 1 | **加入 AD Group** | 系統管理員 / IT | 請管理員將使用者的 NT 帳號加入 `Quality-Roadmap-Access` AD Group（ap.corning.com）。未加入此群組的使用者即使 SSO 登入成功，仍會被系統拒絕（403） |
+| 2 | **確認 Azure AD 帳號** | 使用者本人 | 確認可正常登入 Microsoft 365（即擁有有效的 Corning Azure AD 帳號） |
+
+> **注意：** AD Group 是系統的「入口閘門」— 不在群組內的使用者連註冊都無法完成。
+
+#### 方式一：Azure AD SSO 登入（推薦 Corning 員工使用）
+
+1. 登入頁面點擊 **「Sign in with Microsoft」** 按鈕
+2. 在 Microsoft 登入視窗完成驗證（支援 MFA）
 3. 首次登入系統會自動彈出「Complete your registration」視窗
-   - 填寫 Name、Email
    - 勾選所屬 Plant（可複選）與 Process（可複選）
    - 送出後帳號狀態為「Pending」
 4. 管理員至 **Admin → User Management** 頁面審核、指派角色
-5. 審核通過後，下次用相同 NT 帳號登入即直接進入系統
+5. 審核通過後，下次點擊「Sign in with Microsoft」即直接進入系統
 
-#### 方式二：Local Account 註冊（適用無 Corning AD 的外部人員或測試）
+#### 方式二：Local Account 註冊（適用無 Azure AD 的外部人員或測試）
 
-1. 登入頁面切換到 **Local Account** Tab，點擊「Register」連結
+1. 登入頁面點擊 **Local Account** Tab，點擊「Register」連結
 2. 填寫 Name（顯示名稱）、Account（帳號）、Email、Password（需含大小寫字母及數字，至少 8 字元）
 3. 選擇所屬 Plant（可多選）和 Process（可多選），決定可編輯的資料範圍
 4. 送出後帳號狀態為「Pending」，需管理員審核
@@ -989,8 +999,8 @@ curl http://your-server/api/v1/dashboard/summary \
 |------|------|------|------|
 | `/api/v1/auth/login` | POST | 本地帳號登入 | Public |
 | `/api/v1/auth/register` | POST | 本地帳號註冊 | Public |
-| `/api/v1/auth/ad-login` | POST | Corning AD 登入（LDAP 驗證） | Public |
-| `/api/v1/auth/ad-register` | POST | AD 首次登入補填資料（需 AD 密碼再驗證） | Public |
+| `/api/v1/auth/sso-login` | POST | Azure AD SSO 登入（驗 Access Token + AD Group） | Public |
+| `/api/v1/auth/sso-register` | POST | SSO 首次登入補填 Plant/Process | Public |
 | `/api/v1/auth/refresh` | POST | 刷新 Token | Public |
 | `/api/v1/auth/forgot-password` | POST | 忘記密碼 | Public |
 | `/api/v1/auth/reset-password` | POST | 重設密碼 | Public |
@@ -1531,10 +1541,11 @@ npx tsc --noEmit
 
 ## 安全機制
 
-- **密碼** — bcrypt 雜湊 (cost factor 12)
-- **Corning AD 驗證** — 透過 `ldap3` 向 `ap.corning.com` 綁定驗證；AD 密碼不進資料庫、不寫 log
+- **Azure AD Token 驗證** — RS256 簽章驗證（透過 Microsoft JWKS endpoint）、audience / issuer / 過期時間驗證
+- **AD Group 閘門** — 透過 LDAP（NTLM 認證）遞迴查詢使用者是否屬於 `Quality-Roadmap-Access` 群組；不在群組 → 403
+- **密碼** — bcrypt 雜湊 (cost factor 12)（本地帳號）
 - **JWT** — HS256 演算法，Access Token 8hr + Refresh Token 7 天 (HttpOnly Cookie)
-- **Rate Limiting** — `/login`、`/ad-login` 5 次/分鐘；`/ad-register` 3 次/分鐘
+- **Rate Limiting** — `/login`、`/sso-login` 5 次/分鐘；`/sso-register` 3 次/分鐘
 - **SQL Injection 防護** — SQLAlchemy 參數化查詢
 - **XSS 防護** — React 自動 escape
 - **CORS** — 限制允許的來源

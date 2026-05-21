@@ -15,5 +15,9 @@ const msalConfig: Configuration = {
 export const msalInstance = new PublicClientApplication(msalConfig)
 
 export const loginRequest = {
-  scopes: ['openid', 'profile', 'email'],
+  scopes: ['openid', 'profile', 'email', `api://${import.meta.env.VITE_AZURE_CLIENT_ID}/RBAC`],
+}
+
+export const tokenRequest = {
+  scopes: [`api://${import.meta.env.VITE_AZURE_CLIENT_ID}/RBAC`],
 }

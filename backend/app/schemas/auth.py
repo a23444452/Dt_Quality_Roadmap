@@ -72,7 +72,7 @@ class ResetPasswordRequest(BaseModel):
 
 
 class SSOLoginRequest(BaseModel):
-    id_token: str
+    access_token: str
 
 
 class SSOLoginAuthenticated(BaseModel):
@@ -96,6 +96,6 @@ class SSOLoginPendingApproval(BaseModel):
 
 
 class SSORegisterRequest(BaseModel):
-    id_token: str
+    access_token: str
     plant_ids: list[int] = []
     process_ids: list[int] = []

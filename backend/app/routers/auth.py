@@ -30,7 +30,8 @@ from app.services.auth_service import (
     register_user,
     reset_password,
 )
-from app.utils.azure_ad import AzureADTokenError, verify_azure_id_token
+from app.utils.azure_ad import AzureADTokenError, verify_azure_access_token, verify_azure_id_token
+from app.utils.ldap_validation import check_ad_group_membership
 from app.utils.email import send_new_user_registration_notification
 from app.utils.security import (
     create_access_token,
@@ -151,12 +152,18 @@ def sso_login(
     db: Session = Depends(get_db),
 ):
     try:
-        claims = verify_azure_id_token(body.id_token)
+        claims = verify_azure_access_token(body.access_token)
     except AzureADTokenError as exc:
         status = 503 if "try again" in str(exc) else 401
         raise HTTPException(status_code=status, detail=str(exc))
 
-    username = claims["preferred_username"].split("@")[0].lower()
+    username = claims["upn"].split("@")[0].lower()
+
+    if not check_ad_group_membership(username, settings.ad_required_group):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Access denied. You are not a member of the '{settings.ad_required_group}' AD group.",
+        )
 
     user = db.query(User).filter(func.lower(User.username) == username).first()
 
@@ -164,7 +171,7 @@ def sso_login(
         return ok(
             SSOLoginNeedRegistration(
                 username=username,
-                email=claims.get("email", ""),
+                email=claims.get("email", claims.get("upn", "")),
                 display_name=claims.get("name", ""),
             ).model_dump()
         )
@@ -189,13 +196,20 @@ def sso_register(request: Request, body: SSORegisterRequest, db: Session = Depen
     from sqlalchemy.exc import IntegrityError
 
     try:
-        claims = verify_azure_id_token(body.id_token)
+        claims = verify_azure_access_token(body.access_token)
     except AzureADTokenError as exc:
         status = 503 if "try again" in str(exc) else 401
         raise HTTPException(status_code=status, detail=str(exc))
 
-    username = claims["preferred_username"].split("@")[0].lower()
-    email = claims.get("email", "").strip().lower()
+    username = claims["upn"].split("@")[0].lower()
+
+    if not check_ad_group_membership(username, settings.ad_required_group):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Access denied. You are not a member of the '{settings.ad_required_group}' AD group.",
+        )
+
+    email = claims.get("email", claims.get("upn", "")).strip().lower()
     display_name = claims.get("name", username)
 
     existing = db.query(User).filter(func.lower(User.username) == username).first()

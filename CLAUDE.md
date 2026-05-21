@@ -49,3 +49,16 @@ grep -r "舊標籤名稱" frontend/src/
 |------|---------|
 | API 回傳舊設定值 | Ctrl+C 停止，重新執行 uvicorn |
 | 前端顯示舊資料 | 重啟後端 + 清除瀏覽器快取 |
+
+## 重構欄位名稱時的檢查清單
+
+改名（如 `id_token` → `access_token`）時必須全域搜尋：
+1. TypeScript types/interfaces
+2. API request body
+3. 元件 props 和 state
+4. 測試檔案的 mock 和 payload
+5. README / 文件
+
+```bash
+grep -r "舊名稱" frontend/src/ backend/ --include="*.ts" --include="*.tsx" --include="*.py"
+```

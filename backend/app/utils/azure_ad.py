@@ -87,3 +87,34 @@ def verify_azure_id_token(id_token: str) -> dict:
         raise AzureADTokenError("Invalid token claims (missing preferred_username)")
 
     return claims
+
+
+def verify_azure_access_token(access_token: str) -> dict:
+    jwks = _fetch_jwks()
+    public_key = _get_signing_key(access_token, jwks)
+
+    expected_audience = f"api://{settings.azure_ad_client_id}"
+    expected_issuer = f"https://sts.windows.net/{settings.azure_ad_tenant_id}/"
+
+    try:
+        claims = jwt.decode(
+            access_token,
+            public_key,
+            algorithms=["RS256"],
+            audience=expected_audience,
+            issuer=expected_issuer,
+            options={"require": ["exp", "iat", "aud", "iss", "sub"]},
+        )
+    except jwt.ExpiredSignatureError as exc:
+        raise AzureADTokenError("Invalid or expired SSO token") from exc
+    except jwt.InvalidAudienceError as exc:
+        raise AzureADTokenError("Token not issued for this application (audience mismatch)") from exc
+    except jwt.InvalidIssuerError as exc:
+        raise AzureADTokenError("Invalid token issuer") from exc
+    except jwt.PyJWTError as exc:
+        raise AzureADTokenError("Invalid or expired SSO token") from exc
+
+    if "upn" not in claims:
+        raise AzureADTokenError("Invalid token claims (missing upn)")
+
+    return claims

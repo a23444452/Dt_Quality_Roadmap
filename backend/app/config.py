@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     admin_notification_emails: str = ""  # Comma-separated admin emails for notifications (if empty, query from DB)
     azure_ad_client_id: str = ""
     azure_ad_tenant_id: str = ""
+    ad_required_group: str = "Quality-Roadmap-Access"
+    ldap_bind_dn: str = ""  # NTLM format: ap\\svc_account
+    ldap_bind_password: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

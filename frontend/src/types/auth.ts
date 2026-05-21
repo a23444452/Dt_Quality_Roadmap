@@ -39,11 +39,10 @@ export interface LoginResponse {
 }
 
 export interface SSOLoginRequest {
-  id_token: string
+  access_token: string
 }
 
 export interface SSORegisterRequest {
-  id_token: string
   plant_ids: number[]
   process_ids: number[]
 }

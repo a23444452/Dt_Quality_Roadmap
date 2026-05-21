@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { MsalProvider, useMsal } from '@azure/msal-react'
 import { InteractionStatus } from '@azure/msal-browser'
 import apiClient from '@/lib/api-client'
-import { msalInstance, loginRequest } from '@/lib/msal-config'
+import { msalInstance, loginRequest, tokenRequest } from '@/lib/msal-config'
 import type {
   User,
   LoginRequest,
@@ -47,11 +47,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (inProgress !== InteractionStatus.None) return
 
-    instance.handleRedirectPromise().then((response) => {
-      if (response?.idToken) {
-        localStorage.setItem('sso_id_token', response.idToken)
-      }
-    }).catch(() => {
+    instance.handleRedirectPromise().catch(() => {
       // Redirect errors handled in LoginPage
     })
   }, [instance, inProgress])
@@ -59,7 +55,6 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem('access_token')
     localStorage.removeItem('user')
-    localStorage.removeItem('sso_id_token')
     setUser(null)
   }, [])
 
@@ -94,16 +89,27 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   }, [])
 
   const ssoLogin = useCallback(async (): Promise<SSOLoginResult> => {
-    let idToken = localStorage.getItem('sso_id_token')
+    const accounts = instance.getAllAccounts()
 
-    if (!idToken) {
+    if (accounts.length === 0) {
+      sessionStorage.setItem('sso_redirect_pending', '1')
       await instance.loginRedirect(loginRequest)
       throw new Error('Redirecting to Azure AD')
     }
 
-    localStorage.removeItem('sso_id_token')
+    let accessToken: string
+    try {
+      const tokenResponse = await instance.acquireTokenSilent({
+        ...tokenRequest,
+        account: accounts[0],
+      })
+      accessToken = tokenResponse.accessToken
+    } catch {
+      await instance.acquireTokenRedirect(tokenRequest)
+      throw new Error('Redirecting to acquire token')
+    }
 
-    const resp = await apiClient.post<ApiResponse<SSOLoginResult>>('/auth/sso-login', { id_token: idToken })
+    const resp = await apiClient.post<ApiResponse<SSOLoginResult>>('/auth/sso-login', { access_token: accessToken })
     const result = resp.data.data!
 
     if (result.status === 'authenticated') {
@@ -116,9 +122,23 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   }, [instance])
 
   const ssoRegister = useCallback(async (data: SSORegisterRequest): Promise<string> => {
-    const resp = await apiClient.post<ApiResponse<{ message: string }>>('/auth/sso-register', data)
+    const accounts = instance.getAllAccounts()
+    if (accounts.length === 0) {
+      throw new Error('No SSO session. Please sign in again.')
+    }
+
+    const tokenResponse = await instance.acquireTokenSilent({
+      ...tokenRequest,
+      account: accounts[0],
+    })
+
+    const resp = await apiClient.post<ApiResponse<{ message: string }>>('/auth/sso-register', {
+      access_token: tokenResponse.accessToken,
+      plant_ids: data.plant_ids,
+      process_ids: data.process_ids,
+    })
     return resp.data.data!.message
-  }, [])
+  }, [instance])
 
   return (
     <AuthContext.Provider

@@ -27,23 +27,25 @@ interface ReferenceOptions {
 
 interface Props {
   open: boolean
-  ntAccount: string
-  password: string
+  idToken: string
+  username: string
+  email: string
+  displayName: string
   onSubmitted: (message: string) => void
   onCancel: () => void
 }
 
-export function ADFirstTimeRegisterDialog({
+export function SSOFirstTimeRegisterDialog({
   open,
-  ntAccount,
-  password,
+  idToken,
+  username,
+  email,
+  displayName,
   onSubmitted,
   onCancel,
 }: Props) {
-  const { adRegister } = useAuth()
+  const { ssoRegister } = useAuth()
 
-  const [displayName, setDisplayName] = useState('')
-  const [email, setEmail] = useState('')
   const [plantIds, setPlantIds] = useState<number[]>([])
   const [processIds, setProcessIds] = useState<number[]>([])
   const [options, setOptions] = useState<ReferenceOptions>({ plants: [], processes: [] })
@@ -64,8 +66,6 @@ export function ADFirstTimeRegisterDialog({
 
   useEffect(() => {
     if (!open) {
-      setDisplayName('')
-      setEmail('')
       setPlantIds([])
       setProcessIds([])
       setError(null)
@@ -91,11 +91,8 @@ export function ADFirstTimeRegisterDialog({
 
     setIsSubmitting(true)
     try {
-      const message = await adRegister({
-        username: ntAccount,
-        password,
-        email,
-        display_name: displayName,
+      const message = await ssoRegister({
+        id_token: idToken,
         plant_ids: plantIds,
         process_ids: processIds,
       })
@@ -105,15 +102,9 @@ export function ADFirstTimeRegisterDialog({
         response?: { status?: number; data?: { detail?: string } }
       }
       if (axiosError.response?.status === 409) {
-        setError(
-          typeof axiosError.response.data?.detail === 'string'
-            ? axiosError.response.data.detail
-            : 'This NT account or email is already registered.',
-        )
+        setError(axiosError.response.data?.detail ?? 'This account is already registered.')
       } else if (axiosError.response?.status === 401) {
-        setError('Corning credentials no longer valid. Please sign in again.')
-      } else if (typeof axiosError.response?.data?.detail === 'string') {
-        setError(axiosError.response.data.detail)
+        setError('SSO session expired. Please sign in again.')
       } else {
         setError('Registration failed. Please try again.')
       }
@@ -128,7 +119,7 @@ export function ADFirstTimeRegisterDialog({
         <DialogHeader>
           <DialogTitle>Complete your registration</DialogTitle>
           <DialogDescription>
-            Your NT account <b>{ntAccount}</b> is verified. Select your plant and process assignments.
+            Welcome <b>{displayName || username}</b>! Select your plant and process assignments.
             An administrator will approve your access.
           </DialogDescription>
         </DialogHeader>
@@ -141,25 +132,13 @@ export function ADFirstTimeRegisterDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="ad-display-name">Name</Label>
-            <Input
-              id="ad-display-name"
-              type="text"
-              required
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
+            <Label>Name</Label>
+            <Input type="text" value={displayName} disabled />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ad-email">Email</Label>
-            <Input
-              id="ad-email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <Label>Email</Label>
+            <Input type="email" value={email} disabled />
           </div>
 
           {!optionsLoading && (

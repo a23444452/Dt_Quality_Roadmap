@@ -38,21 +38,17 @@ export interface LoginResponse {
   user: User
 }
 
-export interface ADLoginRequest {
-  username: string
-  password: string
+export interface SSOLoginRequest {
+  id_token: string
 }
 
-export interface ADRegisterRequest {
-  username: string
-  password: string
-  email: string
-  display_name: string
+export interface SSORegisterRequest {
+  id_token: string
   plant_ids: number[]
   process_ids: number[]
 }
 
-export type ADLoginResult =
+export type SSOLoginResult =
   | {
       status: 'authenticated'
       access_token: string
@@ -60,5 +56,5 @@ export type ADLoginResult =
       expires_in: number
       user: User
     }
-  | { status: 'need_registration'; username: string }
+  | { status: 'need_registration'; username: string; email: string; display_name: string }
   | { status: 'pending_approval'; username: string }

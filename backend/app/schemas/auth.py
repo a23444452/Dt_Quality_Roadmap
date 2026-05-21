@@ -8,11 +8,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class ADLoginRequest(BaseModel):
-    username: str
-    password: str
-
-
 class RegisterRequest(BaseModel):
     username: str
     email: str
@@ -76,7 +71,11 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
-class ADLoginAuthenticated(BaseModel):
+class SSOLoginRequest(BaseModel):
+    id_token: str
+
+
+class SSOLoginAuthenticated(BaseModel):
     status: Literal["authenticated"] = "authenticated"
     access_token: str
     token_type: str = "bearer"
@@ -84,20 +83,19 @@ class ADLoginAuthenticated(BaseModel):
     user: UserInfo
 
 
-class ADLoginNeedRegistration(BaseModel):
+class SSOLoginNeedRegistration(BaseModel):
     status: Literal["need_registration"] = "need_registration"
     username: str
+    email: str
+    display_name: str
 
 
-class ADLoginPendingApproval(BaseModel):
+class SSOLoginPendingApproval(BaseModel):
     status: Literal["pending_approval"] = "pending_approval"
     username: str
 
 
-class ADRegisterRequest(BaseModel):
-    username: str
-    password: str
-    email: str
-    display_name: str
+class SSORegisterRequest(BaseModel):
+    id_token: str
     plant_ids: list[int] = []
     process_ids: list[int] = []

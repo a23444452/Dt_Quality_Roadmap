@@ -1,16 +1,14 @@
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.dependencies import get_db
 from app.middleware.rate_limit import limiter
+from app.models.plant import Plant
+from app.models.process import Process
 from app.models.user import User
 from app.schemas.auth import (
-    ADLoginAuthenticated,
-    ADLoginNeedRegistration,
-    ADLoginPendingApproval,
-    ADLoginRequest,
-    ADRegisterRequest,
     ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
@@ -18,19 +16,21 @@ from app.schemas.auth import (
     ProcessInfo,
     RegisterRequest,
     ResetPasswordRequest,
+    SSOLoginAuthenticated,
+    SSOLoginNeedRegistration,
+    SSOLoginPendingApproval,
+    SSOLoginRequest,
+    SSORegisterRequest,
     UserInfo,
 )
 from app.schemas.common import ok
 from app.services.auth_service import (
-    ADAuthResult,
-    ADRegistrationConflict,
-    authenticate_ad_user,
     authenticate_user,
     create_reset_token,
-    register_ad_user,
     register_user,
     reset_password,
 )
+from app.utils.azure_ad import AzureADTokenError, verify_azure_id_token
 from app.utils.email import send_new_user_registration_notification
 from app.utils.security import (
     create_access_token,
@@ -92,8 +92,6 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     except IntegrityError:
         raise HTTPException(status_code=409, detail="Username or email already exists")
 
-    # Send email notification to admins
-    # Priority: 1) ADMIN_NOTIFICATION_EMAILS from .env, 2) Query from database
     if settings.admin_notification_emails:
         admin_emails = [e.strip() for e in settings.admin_notification_emails.split(",") if e.strip()]
     else:
@@ -144,31 +142,40 @@ def _issue_tokens(user: User, response: Response) -> LoginResponse:
     )
 
 
-@router.post("/ad-login")
-@limiter.limit("5/minute")
-def ad_login(
+@router.post("/sso-login")
+@limiter.limit("10/minute")
+def sso_login(
     request: Request,
-    body: ADLoginRequest,
+    body: SSOLoginRequest,
     response: Response,
     db: Session = Depends(get_db),
 ):
-    result = authenticate_ad_user(db, body.username, body.password)
+    try:
+        claims = verify_azure_id_token(body.id_token)
+    except AzureADTokenError as exc:
+        status = 503 if "try again" in str(exc) else 401
+        raise HTTPException(status_code=status, detail=str(exc))
 
-    if result.status == ADAuthResult.INVALID_CREDENTIALS:
-        raise HTTPException(status_code=401, detail="Invalid Corning credentials")
-    if result.status == ADAuthResult.INACTIVE_ACCOUNT:
+    username = claims["preferred_username"].split("@")[0].lower()
+
+    user = db.query(User).filter(func.lower(User.username) == username).first()
+
+    if user is None:
+        return ok(
+            SSOLoginNeedRegistration(
+                username=username,
+                email=claims.get("email", ""),
+                display_name=claims.get("name", ""),
+            ).model_dump()
+        )
+    if user.status == "pending":
+        return ok(SSOLoginPendingApproval(username=username).model_dump())
+    if user.status != "active":
         raise HTTPException(status_code=403, detail="Account is inactive. Contact an administrator.")
 
-    if result.status == ADAuthResult.PENDING_APPROVAL:
-        return ok(ADLoginPendingApproval(username=result.username).model_dump())
-
-    if result.status == ADAuthResult.NEED_REGISTRATION:
-        return ok(ADLoginNeedRegistration(username=result.username).model_dump())
-
-    assert result.user is not None
-    login_payload = _issue_tokens(result.user, response)
+    login_payload = _issue_tokens(user, response)
     return ok(
-        ADLoginAuthenticated(
+        SSOLoginAuthenticated(
             access_token=login_payload.access_token,
             expires_in=login_payload.expires_in,
             user=login_payload.user,
@@ -176,25 +183,53 @@ def ad_login(
     )
 
 
-@router.post("/ad-register", status_code=201)
+@router.post("/sso-register", status_code=201)
 @limiter.limit("3/minute")
-def ad_register(request: Request, body: ADRegisterRequest, db: Session = Depends(get_db)):
+def sso_register(request: Request, body: SSORegisterRequest, db: Session = Depends(get_db)):
     from sqlalchemy.exc import IntegrityError
 
     try:
-        user = register_ad_user(
-            db,
-            body.username,
-            body.password,
-            body.email,
-            body.display_name,
-            body.plant_ids,
-            body.process_ids,
-        )
-    except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid Corning credentials")
-    except ADRegistrationConflict as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        claims = verify_azure_id_token(body.id_token)
+    except AzureADTokenError as exc:
+        status = 503 if "try again" in str(exc) else 401
+        raise HTTPException(status_code=status, detail=str(exc))
+
+    username = claims["preferred_username"].split("@")[0].lower()
+    email = claims.get("email", "").strip().lower()
+    display_name = claims.get("name", username)
+
+    existing = db.query(User).filter(func.lower(User.username) == username).first()
+    if existing is not None:
+        raise HTTPException(status_code=409, detail=f"Account already exists for '{username}'.")
+
+    if email:
+        existing_email = db.query(User).filter(func.lower(User.email) == email).first()
+        if existing_email is not None:
+            raise HTTPException(status_code=409, detail=f"Account with email '{email}' already exists.")
+
+    from app.services.auth_service import _unusable_password_hash
+
+    user = User(
+        username=username,
+        email=email,
+        password_hash=_unusable_password_hash(),
+        display_name=display_name,
+        role="viewer",
+        status="pending",
+    )
+
+    if body.plant_ids:
+        plants = db.query(Plant).filter(Plant.id.in_(body.plant_ids)).all()
+        user.plants = plants
+
+    if body.process_ids:
+        processes = db.query(Process).filter(Process.id.in_(body.process_ids)).all()
+        user.processes = processes
+
+    try:
+        db.add(user)
+        db.commit()
+        db.refresh(user)
     except IntegrityError:
         raise HTTPException(status_code=409, detail="Username or email already exists")
 

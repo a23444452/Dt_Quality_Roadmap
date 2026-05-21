@@ -1,13 +1,15 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { MsalProvider, useMsal } from '@azure/msal-react'
+import { InteractionStatus } from '@azure/msal-browser'
 import apiClient from '@/lib/api-client'
+import { msalInstance, loginRequest } from '@/lib/msal-config'
 import type {
   User,
   LoginRequest,
   RegisterRequest,
   LoginResponse,
-  ADLoginRequest,
-  ADLoginResult,
-  ADRegisterRequest,
+  SSOLoginResult,
+  SSORegisterRequest,
 } from '@/types/auth'
 import type { ApiResponse } from '@/types/api'
 
@@ -16,14 +18,15 @@ interface AuthContextType {
   isLoading: boolean
   login: (data: LoginRequest) => Promise<void>
   register: (data: RegisterRequest) => Promise<string>
-  adLogin: (data: ADLoginRequest) => Promise<ADLoginResult>
-  adRegister: (data: ADRegisterRequest) => Promise<string>
+  ssoLogin: () => Promise<SSOLoginResult>
+  ssoRegister: (data: SSORegisterRequest) => Promise<string>
   logout: () => void
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+function AuthProviderInner({ children }: { children: ReactNode }) {
+  const { instance, inProgress } = useMsal()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -41,13 +44,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false)
   }, [])
 
+  useEffect(() => {
+    if (inProgress !== InteractionStatus.None) return
+
+    instance.handleRedirectPromise().then((response) => {
+      if (response?.idToken) {
+        localStorage.setItem('sso_id_token', response.idToken)
+      }
+    }).catch(() => {
+      // Redirect errors handled in LoginPage
+    })
+  }, [instance, inProgress])
+
   const logout = useCallback(() => {
     localStorage.removeItem('access_token')
     localStorage.removeItem('user')
+    localStorage.removeItem('sso_id_token')
     setUser(null)
   }, [])
 
-  // Silent refresh: refresh token before expiry (7h55m interval for 8h tokens)
   useEffect(() => {
     if (!user) return
 
@@ -78,28 +93,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return resp.data.data!.message
   }, [])
 
-  const adLogin = useCallback(async (data: ADLoginRequest): Promise<ADLoginResult> => {
-    const resp = await apiClient.post<ApiResponse<ADLoginResult>>('/auth/ad-login', data)
+  const ssoLogin = useCallback(async (): Promise<SSOLoginResult> => {
+    let idToken = localStorage.getItem('sso_id_token')
+
+    if (!idToken) {
+      await instance.loginRedirect(loginRequest)
+      throw new Error('Redirecting to Azure AD')
+    }
+
+    localStorage.removeItem('sso_id_token')
+
+    const resp = await apiClient.post<ApiResponse<SSOLoginResult>>('/auth/sso-login', { id_token: idToken })
     const result = resp.data.data!
+
     if (result.status === 'authenticated') {
       localStorage.setItem('access_token', result.access_token)
       localStorage.setItem('user', JSON.stringify(result.user))
       setUser(result.user)
     }
-    return result
-  }, [])
 
-  const adRegister = useCallback(async (data: ADRegisterRequest): Promise<string> => {
-    const resp = await apiClient.post<ApiResponse<{ message: string }>>('/auth/ad-register', data)
+    return result
+  }, [instance])
+
+  const ssoRegister = useCallback(async (data: SSORegisterRequest): Promise<string> => {
+    const resp = await apiClient.post<ApiResponse<{ message: string }>>('/auth/sso-register', data)
     return resp.data.data!.message
   }, [])
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, login, register, adLogin, adRegister, logout }}
+      value={{ user, isLoading, login, register, ssoLogin, ssoRegister, logout }}
     >
       {children}
     </AuthContext.Provider>
+  )
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  return (
+    <MsalProvider instance={msalInstance}>
+      <AuthProviderInner>{children}</AuthProviderInner>
+    </MsalProvider>
   )
 }
 

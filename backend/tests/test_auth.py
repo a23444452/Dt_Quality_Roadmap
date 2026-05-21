@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
@@ -109,3 +111,101 @@ def test_login_pending_user(client):
         "password": "SecurePass1",
     })
     assert resp.status_code == 401
+
+
+@patch("app.routers.auth.verify_azure_id_token")
+def test_sso_login_new_user(mock_verify, client):
+    mock_verify.return_value = {
+        "preferred_username": "newuser@corning.com",
+        "email": "newuser@corning.com",
+        "name": "New User",
+        "sub": "azure-sub-id",
+    }
+    resp = client.post("/api/v1/auth/sso-login", json={"id_token": "fake-token"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["data"]["status"] == "need_registration"
+    assert data["data"]["username"] == "newuser"
+    assert data["data"]["email"] == "newuser@corning.com"
+
+
+@patch("app.routers.auth.verify_azure_id_token")
+def test_sso_login_active_user(mock_verify, client, active_user):
+    mock_verify.return_value = {
+        "preferred_username": "testuser@corning.com",
+        "email": "test@example.com",
+        "name": "Test User",
+        "sub": "azure-sub-id",
+    }
+    resp = client.post("/api/v1/auth/sso-login", json={"id_token": "fake-token"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["data"]["status"] == "authenticated"
+    assert "access_token" in data["data"]
+    assert data["data"]["user"]["username"] == "testuser"
+
+
+@patch("app.routers.auth.verify_azure_id_token")
+def test_sso_login_pending_user(mock_verify, client):
+    client.post("/api/v1/auth/register", json={
+        "username": "pendingsso",
+        "email": "pending@corning.com",
+        "password": "SecurePass1",
+        "display_name": "Pending User",
+    })
+    mock_verify.return_value = {
+        "preferred_username": "pendingsso@corning.com",
+        "email": "pending@corning.com",
+        "name": "Pending User",
+        "sub": "azure-sub-id",
+    }
+    resp = client.post("/api/v1/auth/sso-login", json={"id_token": "fake-token"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["data"]["status"] == "pending_approval"
+
+
+@patch("app.routers.auth.verify_azure_id_token")
+def test_sso_login_invalid_token(mock_verify, client):
+    from app.utils.azure_ad import AzureADTokenError
+    mock_verify.side_effect = AzureADTokenError("Invalid or expired SSO token")
+    resp = client.post("/api/v1/auth/sso-login", json={"id_token": "bad-token"})
+    assert resp.status_code == 401
+
+
+@patch("app.routers.auth.verify_azure_id_token")
+def test_sso_register_success(mock_verify, client):
+    mock_verify.return_value = {
+        "preferred_username": "ssouser@corning.com",
+        "email": "ssouser@corning.com",
+        "name": "SSO User",
+        "sub": "azure-sub-id",
+    }
+    resp = client.post("/api/v1/auth/sso-register", json={
+        "id_token": "fake-token",
+        "plant_ids": [],
+        "process_ids": [],
+    })
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["success"] is True
+    assert data["data"]["status"] == "pending"
+    assert data["data"]["username"] == "ssouser"
+
+
+@patch("app.routers.auth.verify_azure_id_token")
+def test_sso_register_duplicate(mock_verify, client, active_user):
+    mock_verify.return_value = {
+        "preferred_username": "testuser@corning.com",
+        "email": "test@example.com",
+        "name": "Test User",
+        "sub": "azure-sub-id",
+    }
+    resp = client.post("/api/v1/auth/sso-register", json={
+        "id_token": "fake-token",
+        "plant_ids": [],
+        "process_ids": [],
+    })
+    assert resp.status_code == 409

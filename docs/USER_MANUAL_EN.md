@@ -25,32 +25,45 @@ D^t Solution Roadmap is a quality management solution tracking system designed t
 
 ## Getting Started
 
-### 1. Register an Account
+### Prerequisites (Must Read for New Users)
 
-1. Go to the system login page and click **Register**
-2. Fill in the following information:
-   - **Name**: Your display name
-   - **Account**: Username for login
-   - **Email**: Your email address
-   - **Password**: At least 8 characters, including uppercase, lowercase, and a number
-   - **Plant**: Select your assigned plants
-   - **Process**: Select your assigned processes
-3. Click **Register** to submit your application
-4. Wait for admin approval before you can log in
+Before using this system, you must meet the following requirements:
 
-> **Note**: After registration, your account status will be "Pending" until approved by an administrator.
+| Requirement | Description | How to Obtain |
+|-------------|-------------|---------------|
+| Corning Azure AD Account | Your corporate Microsoft account (yourname@corning.com) | Automatically provisioned upon joining the company |
+| AD Group Membership | Must be a member of the `Quality-Roadmap-Access` AD Group | Contact the system administrator or your manager to request access |
 
-### 2. Log In
+> **Important**: If you are not a member of the `Quality-Roadmap-Access` AD Group, the system will deny access (403 Access Denied).
 
-1. Enter your **Account** and **Password** on the login page
-2. Click **Sign In** to log in
-3. Upon successful login, you will be redirected to the Process Map homepage
+### 1. Log In
 
-### 3. Forgot Password
+This system uses **Microsoft SSO (Single Sign-On)** — no separate username/password is needed.
 
-1. Click **Forgot password?** on the login page
-2. Enter your email address
-3. The system will send a password reset link to your inbox
+1. Navigate to the system login page
+2. Click the **Sign in with Microsoft** button
+3. You will be redirected to the Microsoft login page — sign in with your Corning account (yourname@corning.com)
+4. First-time users will be prompted to complete registration (see steps below)
+5. Registered and approved users will be automatically redirected to the Process Map homepage
+
+### 2. First-Time Registration
+
+When you first log in via SSO, the system will detect that you are not yet registered and display a registration dialog:
+
+1. Click **Sign in with Microsoft** to complete SSO verification
+2. Your account, email, and display name will be automatically populated
+3. In the registration dialog, select:
+   - **Plant**: Choose your assigned plant(s)
+   - **Process**: Choose your assigned process(es)
+4. Click **Register** to submit your application
+5. Once approved by an administrator, your next SSO login will grant full access
+
+> **Note**: After registration, your account status will be "Pending" until approved by an administrator. If you log in again before approval, you will see "Your account is awaiting administrator approval."
+
+### 3. Logout and Re-login
+
+1. Click your username in the top-right corner and select **Logout**
+2. To log in again, click **Sign in with Microsoft**
 
 ---
 
@@ -307,26 +320,29 @@ Status codes and colors used in the Solution Map.
 ### Q1: How long until I can log in after registering?
 A: You must wait for admin approval before logging in. If urgent, please contact the system administrator.
 
-### Q2: What if I forget my password?
-A: 
-1. Click **Forgot password?** on the login page
-2. Enter your registered email
-3. Check your inbox for the reset link
-4. Or contact an administrator to reset your password
+### Q2: I see "Access denied" when trying to log in. What should I do?
+A: This means you are not a member of the `Quality-Roadmap-Access` AD Group. Please contact the system administrator or your manager to request being added to the group.
 
-### Q3: Why can't I edit certain cells in the Solution Map?
+### Q3: The login is stuck on "Signing in..." — what should I do?
+A:
+1. Clear your browser cache and Session Storage
+2. Close all browser windows and reopen
+3. Navigate to the system and click **Sign in with Microsoft** again
+4. If the issue persists, contact the system administrator
+
+### Q4: Why can't I edit certain cells in the Solution Map?
 A: Possible reasons:
 - Your role is Viewer, which has no edit permissions
 - The cell is not within your assigned Plant or Process scope
 - Contact an administrator to adjust your permission settings
 
-### Q4: How can I see my assigned Plants and Processes?
+### Q5: How can I see my assigned Plants and Processes?
 A: 
 1. Click your username in the top right corner
 2. Go to the **Profile** page
 3. View the account information section
 
-### Q5: How do I contact the system administrator?
+### Q6: How do I contact the system administrator?
 A: 
 - The **Admin Contact** email is displayed at the bottom of the login page and sidebar
 - Click the email to open your email client directly
@@ -343,4 +359,4 @@ Administrator contact information is displayed at:
 
 ---
 
-*Last Updated: 2026-04-28*
+*Last Updated: 2026-05-22*

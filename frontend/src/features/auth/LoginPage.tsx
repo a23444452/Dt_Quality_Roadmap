@@ -198,6 +198,9 @@ export function LoginPage() {
             </svg>
             {ssoLoading ? 'Signing in...' : 'Sign in with Microsoft'}
           </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            Need to join <span className="font-medium">Quality-Roadmap-Access</span> AD Group first
+          </p>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

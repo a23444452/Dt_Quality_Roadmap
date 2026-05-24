@@ -24,7 +24,7 @@ from app.routers.g_tracking import router as g_tracking_router
 IMPORT_TEMP_DIR = Path("tmp/imports")
 IMPORT_TTL_SECONDS = 15 * 60
 
-app = FastAPI(title="D^t Quality Roadmap", version="0.1.0")
+app = FastAPI(title="Quality D^t Solution Map System", version="0.1.0")
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

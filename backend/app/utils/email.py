@@ -92,7 +92,7 @@ def send_new_user_registration_notification(
             <p>Please log in to the system to review:</p>
             <a href="{base_url}/admin/users" class="btn">Go to User Management</a>
             <div class="footer">
-                <p>Best regards,<br>D^t Solution Roadmap System</p>
+                <p>Best regards,<br>Quality D^t Solution Map System</p>
                 <p><em>Note: Replies to this email address are not monitored.</em></p>
             </div>
         </div>
@@ -127,11 +127,11 @@ def send_user_approved_notification(user_email: str, username: str, display_name
         <div class="container">
             <h2>Account Approved</h2>
             <p>Hi {display_name},</p>
-            <p>Congratulations! Your D^t Solution Roadmap account <strong>{username}</strong> has been approved and you can now log in to the system.</p>
+            <p>Congratulations! Your Quality D^t Solution Map System account <strong>{username}</strong> has been approved and you can now log in to the system.</p>
             <p>For more details, please visit this page:</p>
             <a href="{base_url}/login" class="btn">Log In Now</a>
             <div class="footer">
-                <p>Best regards,<br>D^t Solution Roadmap System</p>
+                <p>Best regards,<br>Quality D^t Solution Map System</p>
                 <p><em>Note: Replies to this email address are not monitored.</em></p>
             </div>
         </div>
@@ -166,14 +166,14 @@ def send_user_rejected_notification(
         <div class="container">
             <h2>Registration Rejected</h2>
             <p>Hi {display_name},</p>
-            <p>We regret to inform you that your D^t Solution Roadmap account <strong>{username}</strong> registration has not been approved.</p>
+            <p>We regret to inform you that your Quality D^t Solution Map System account <strong>{username}</strong> registration has not been approved.</p>
             <div class="info">
                 {reason_text}
             </div>
             <p>If you have any questions, please contact the system administrator.</p>
             <p>System URL: <a href="{base_url}">{base_url}</a></p>
             <div class="footer">
-                <p>Best regards,<br>D^t Solution Roadmap System</p>
+                <p>Best regards,<br>Quality D^t Solution Map System</p>
                 <p><em>Note: Replies to this email address are not monitored.</em></p>
             </div>
         </div>
@@ -205,12 +205,12 @@ def send_user_disabled_notification(user_email: str, username: str, display_name
         <div class="container">
             <h2>Account Disabled</h2>
             <p>Hi {display_name},</p>
-            <p>Your D^t Solution Roadmap account <strong>{username}</strong> has been disabled by the administrator.</p>
+            <p>Your Quality D^t Solution Map System account <strong>{username}</strong> has been disabled by the administrator.</p>
             <p>You will no longer be able to log in to the system.</p>
             <p>If you believe this was done in error, please contact the system administrator.</p>
             <p>System URL: <a href="{base_url}">{base_url}</a></p>
             <div class="footer">
-                <p>Best regards,<br>D^t Solution Roadmap System</p>
+                <p>Best regards,<br>Quality D^t Solution Map System</p>
                 <p><em>Note: Replies to this email address are not monitored.</em></p>
             </div>
         </div>

@@ -168,7 +168,7 @@ export function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Sign In</CardTitle>
-          <CardDescription>Access D^t Solution Roadmap</CardDescription>
+          <CardDescription>Access Quality D^t Solution Map System</CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">

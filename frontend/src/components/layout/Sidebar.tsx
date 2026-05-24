@@ -144,9 +144,9 @@ export function Sidebar() {
         {/* Logo area */}
         <div className="flex h-36 items-center justify-center border-b border-blue-800 px-2">
           {collapsed ? (
-            <img src="/logo.png" alt="D^t Solution Roadmap" className="h-28 w-28 object-contain" />
+            <img src="/Quality Dt Solution Map.png" alt="Quality D^t Solution Map System" className="h-28 w-28 object-contain" />
           ) : (
-            <img src="/logo.png" alt="D^t Solution Roadmap" className="h-32 object-contain" />
+            <img src="/Quality Dt Solution Map.png" alt="Quality D^t Solution Map System" className="h-32 object-contain" />
           )}
         </div>
 

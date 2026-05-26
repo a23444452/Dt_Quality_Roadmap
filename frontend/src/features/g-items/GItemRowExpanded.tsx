@@ -93,71 +93,67 @@ export function GItemRowExpanded({ item, user, statuses, selectedPlantIds }: Pro
 
   if (item.solution_map.length === 0) {
     return (
-      <div className="px-6 py-4 bg-gray-50 text-sm text-muted-foreground">
+      <div className="px-4 py-3 text-sm text-muted-foreground">
         No solution map entries yet for this solution.
       </div>
     )
   }
 
   return (
-    <div className="px-6 py-4 bg-gray-50">
+    <div className="px-4 py-3">
       {error && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2 mb-2">
           {error}
         </div>
       )}
-      <div className="overflow-x-auto border rounded bg-white">
-        <div className="max-h-[50vh] overflow-y-auto overflow-x-clip min-w-fit">
-          <table className="text-sm border-collapse min-w-max">
-            <thead className="sticky top-0 bg-gray-100 z-10">
-              <tr>
-                <th className="text-left px-2 py-1 text-xs font-semibold text-gray-600 border sticky left-0 bg-gray-100 z-20 whitespace-nowrap">
-                  Plant
-                </th>
-                {lines.map((ln) => (
-                  <th
+      <table className="text-sm border-collapse min-w-max">
+        <thead className="sticky top-0 bg-gray-100 z-10">
+          <tr>
+            <th className="text-left px-2 py-1 text-xs font-semibold text-gray-600 border sticky left-0 bg-gray-100 z-20 whitespace-nowrap">
+              Plant
+            </th>
+            {lines.map((ln) => (
+              <th
+                key={ln.id}
+                className="px-2 py-1 text-xs font-semibold text-gray-600 border whitespace-nowrap"
+              >
+                {ln.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {plants.map((p) => (
+            <tr key={p.id}>
+              <td className="px-2 py-1 border font-medium whitespace-nowrap sticky left-0 bg-white z-10">
+                {p.name}
+              </td>
+              {lines.map((ln) => {
+                const cell = cellMap.get(`${p.id}:${ln.id}`)
+                if (!cell) {
+                  return (
+                    <td key={ln.id} className="px-2 py-1 border text-center text-gray-300">
+                      —
+                    </td>
+                  )
+                }
+                const editable = canEditCell(p.id)
+                return (
+                  <td
                     key={ln.id}
-                    className="px-2 py-1 text-xs font-semibold text-gray-600 border whitespace-nowrap"
+                    className={`px-2 py-1 border text-center whitespace-nowrap ${editable ? 'cursor-pointer hover:opacity-80' : ''}`}
+                    style={{ backgroundColor: cell.status_color, color: '#fff' }}
+                    title={editable ? 'Click to edit' : 'Out of your permission scope'}
+                    onClick={() => editable && setEditing({ plantId: p.id, lineId: ln.id })}
                   >
-                    {ln.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {plants.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-2 py-1 border font-medium whitespace-nowrap sticky left-0 bg-white z-10">
-                    {p.name}
+                    {cell.status_code}
                   </td>
-                  {lines.map((ln) => {
-                    const cell = cellMap.get(`${p.id}:${ln.id}`)
-                    if (!cell) {
-                      return (
-                        <td key={ln.id} className="px-2 py-1 border text-center text-gray-300">
-                          —
-                        </td>
-                      )
-                    }
-                    const editable = canEditCell(p.id)
-                    return (
-                      <td
-                        key={ln.id}
-                        className={`px-2 py-1 border text-center whitespace-nowrap ${editable ? 'cursor-pointer hover:opacity-80' : ''}`}
-                        style={{ backgroundColor: cell.status_color, color: '#fff' }}
-                        title={editable ? 'Click to edit' : 'Out of your permission scope'}
-                        onClick={() => editable && setEditing({ plantId: p.id, lineId: ln.id })}
-                      >
-                        {cell.status_code}
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       {editing && (
         <div className="mt-3 flex items-center gap-2">

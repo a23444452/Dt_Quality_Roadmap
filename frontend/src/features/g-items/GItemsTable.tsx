@@ -1,4 +1,3 @@
-import { Fragment, useState } from 'react'
 import { ChevronDown, ChevronRight, Pencil } from 'lucide-react'
 import {
   Table,
@@ -10,7 +9,6 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { GItemRowExpanded } from './GItemRowExpanded'
 import type { GItemEntry } from './types'
 import { REASON_LABELS } from './types'
 import type { User } from '@/types/auth'
@@ -18,26 +16,13 @@ import type { User } from '@/types/auth'
 interface Props {
   items: GItemEntry[]
   user: User | null
-  statuses: { id: number; code: string; name: string; color: string }[]
-  selectedPlantIds?: number[]
+  expandedId: number | null
+  onToggleExpand: (id: number) => void
   onEdit: (item: GItemEntry) => void
 }
 
-export function GItemsTable({ items, user, statuses, selectedPlantIds, onEdit }: Props) {
-  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+export function GItemsTable({ items, user, expandedId, onToggleExpand, onEdit }: Props) {
   const isAdmin = user?.role === 'admin'
-
-  function toggle(id: number) {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
 
   if (items.length === 0) {
     return (
@@ -63,59 +48,48 @@ export function GItemsTable({ items, user, statuses, selectedPlantIds, onEdit }:
       </TableHeader>
       <TableBody>
         {items.map((it) => {
-          const isOpen = expanded.has(it.id)
+          const isOpen = expandedId === it.id
           return (
-            <Fragment key={it.id}>
-              <TableRow className="hover:bg-gray-50">
-                <TableCell>
-                  <button
-                    onClick={() => toggle(it.id)}
-                    className="p-1 rounded hover:bg-gray-200"
-                    aria-label={isOpen ? 'Collapse' : 'Expand'}
-                  >
-                    {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  </button>
-                </TableCell>
-                <TableCell className="font-medium">{it.name}</TableCell>
-                <TableCell>{it.process}</TableCell>
-                <TableCell>{it.station}</TableCell>
-                <TableCell>{it.quality_attribute ?? '—'}</TableCell>
-                <TableCell>
-                  {it.reason ? (
-                    <Badge variant="outline">{REASON_LABELS[it.reason]}</Badge>
-                  ) : (
-                    <span className="text-gray-400">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="max-w-xs truncate" title={it.remark ?? ''}>
-                  {it.remark ?? <span className="text-gray-400">—</span>}
-                </TableCell>
-                {isAdmin && (
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1"
-                      onClick={() => onEdit(it)}
-                    >
-                      <Pencil size={12} /> Edit
-                    </Button>
-                  </TableCell>
+            <TableRow
+              key={it.id}
+              className={`hover:bg-gray-50 cursor-pointer ${isOpen ? 'bg-blue-50' : ''}`}
+              onClick={() => onToggleExpand(it.id)}
+            >
+              <TableCell>
+                <span className="p-1 rounded">
+                  {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </span>
+              </TableCell>
+              <TableCell className="font-medium">{it.name}</TableCell>
+              <TableCell>{it.process}</TableCell>
+              <TableCell>{it.station}</TableCell>
+              <TableCell>{it.quality_attribute ?? '—'}</TableCell>
+              <TableCell>
+                {it.reason ? (
+                  <Badge variant="outline">{REASON_LABELS[it.reason]}</Badge>
+                ) : (
+                  <span className="text-gray-400">—</span>
                 )}
-              </TableRow>
-              {isOpen && (
-                <TableRow>
-                  <TableCell colSpan={isAdmin ? 8 : 7} className="p-0">
-                    <GItemRowExpanded
-                      item={it}
-                      user={user}
-                      statuses={statuses}
-                      selectedPlantIds={selectedPlantIds}
-                    />
-                  </TableCell>
-                </TableRow>
+              </TableCell>
+              <TableCell className="max-w-xs truncate" title={it.remark ?? ''}>
+                {it.remark ?? <span className="text-gray-400">—</span>}
+              </TableCell>
+              {isAdmin && (
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit(it)
+                    }}
+                  >
+                    <Pencil size={12} /> Edit
+                  </Button>
+                </TableCell>
               )}
-            </Fragment>
+            </TableRow>
           )
         })}
       </TableBody>

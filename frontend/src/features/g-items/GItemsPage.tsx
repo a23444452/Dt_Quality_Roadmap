@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import { useAuth } from '@/features/auth/AuthContext'
 import { Button } from '@/components/ui/button'
+import { X } from 'lucide-react'
 import { GItemsFilterBar } from './GItemsFilterBar'
 import { GItemsTable } from './GItemsTable'
+import { GItemRowExpanded } from './GItemRowExpanded'
 import { GItemEditDialog } from './GItemEditDialog'
 import { useGItems } from './useGItems'
 import type { GItemEntry, GItemFilters } from './types'
@@ -31,6 +33,7 @@ export function GItemsPage() {
   const { user } = useAuth()
   const [filters, setFilters] = useState<GItemFilters>({ page: 1, limit: 50 })
   const [editing, setEditing] = useState<GItemEntry | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
 
   const { data: refOptions } = useQuery({
     queryKey: ['reference-options'],
@@ -55,8 +58,14 @@ export function GItemsPage() {
   const limit = data?.limit ?? 50
   const pageCount = Math.max(1, Math.ceil(total / limit))
 
+  const expandedItem = items.find((it) => it.id === expandedId) ?? null
+
   function setPage(next: number) {
     setFilters((f) => ({ ...f, page: next }))
+  }
+
+  function handleToggleExpand(id: number) {
+    setExpandedId((prev) => (prev === id ? null : id))
   }
 
   return (
@@ -75,7 +84,7 @@ export function GItemsPage() {
         onChange={setFilters}
       />
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto min-h-0">
         {isLoading && (
           <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
         )}
@@ -88,12 +97,38 @@ export function GItemsPage() {
           <GItemsTable
             items={items}
             user={user}
-            statuses={statuses ?? []}
-            selectedPlantIds={filters.plant_ids}
+            expandedId={expandedId}
+            onToggleExpand={handleToggleExpand}
             onEdit={setEditing}
           />
         )}
       </div>
+
+      {expandedItem && (
+        <div className="border-t flex-shrink-0 bg-gray-50">
+          <div className="flex items-center justify-between px-4 py-1.5 border-b bg-white">
+            <span className="text-sm font-medium truncate">
+              {expandedItem.name}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => setExpandedId(null)}
+            >
+              <X size={14} />
+            </Button>
+          </div>
+          <div className="overflow-x-auto overflow-y-auto max-h-[40vh]">
+            <GItemRowExpanded
+              item={expandedItem}
+              user={user}
+              statuses={statuses ?? []}
+              selectedPlantIds={filters.plant_ids}
+            />
+          </div>
+        </div>
+      )}
 
       {total > 0 && (
         <div className="border-t bg-white px-6 py-2 flex items-center justify-between text-sm">

@@ -25,6 +25,8 @@ class GItemSolutionMapEntry(BaseModel):
     status_color: str
     solution_map_id: int
     version: int
+    is_g_tracking: bool = False
+    g_complete_date: str | None = None
 
 
 class GItemResponse(BaseModel):

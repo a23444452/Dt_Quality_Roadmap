@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,7 @@ from app.models.solution import Solution
 from app.models.solution_map import SolutionMap
 from app.models.user import User
 from app.schemas.common import ok
+from app.schemas.g_tracking import GTrackingToggle
 from app.schemas.solution_map import SolutionMapUpdate, SolutionMapBatchUpsert
 from app.services.audit_service import log_audit
 from app.services.solution_map_service import get_pivot_data
@@ -113,6 +116,40 @@ def update_solution_map(
         "version": sm.version,
         "updated_at": sm.updated_at.isoformat() if sm.updated_at else None,
         "updated_by": {"id": user.id, "display_name": user.display_name},
+    })
+
+
+@router.put("/{map_id}/g-tracking")
+def toggle_g_tracking(
+    map_id: int,
+    body: GTrackingToggle,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_role("editor", "admin")),
+):
+    sm = db.query(SolutionMap).filter(SolutionMap.id == map_id).first()
+    if sm is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    if not check_user_permission(db, user, sm.solution_id, sm.tank_line_id):
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to edit this solution. Check your assigned plants and processes.",
+        )
+
+    sm.is_g_tracking = body.is_g_tracking
+    sm.g_complete_date = (
+        date.fromisoformat(body.g_complete_date) if body.g_complete_date else None
+    )
+    sm.version += 1
+    sm.updated_by = user.id
+    db.commit()
+    db.refresh(sm)
+
+    return ok({
+        "id": sm.id,
+        "is_g_tracking": sm.is_g_tracking,
+        "g_complete_date": sm.g_complete_date.isoformat() if sm.g_complete_date else None,
+        "version": sm.version,
     })
 
 

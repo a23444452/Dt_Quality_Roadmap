@@ -1,7 +1,12 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
+import { Settings } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useAuth } from '@/features/auth/AuthContext'
 import apiClient from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
+import { GTrackingTargetsDialog } from './GTrackingTargetsDialog'
 
 interface TrackingItem {
   plant: string
@@ -35,6 +40,9 @@ interface TrackingData {
 }
 
 export function GTrackingPage() {
+  const { user } = useAuth()
+  const [targetsOpen, setTargetsOpen] = useState(false)
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['g-tracking'],
     queryFn: async () => {
@@ -58,12 +66,21 @@ export function GTrackingPage() {
 
   return (
     <div className="flex flex-col h-full overflow-auto">
-      <div className="px-6 py-4 border-b bg-white">
-        <h1 className="text-xl font-semibold">G$ Tracking</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Goal Sharing completion tracking — {totalComplete}/{totalItems} completed
-        </p>
+      <div className="px-6 py-4 border-b bg-white flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">G$ Tracking</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Goal Sharing completion tracking — {totalComplete}/{totalItems} completed
+          </p>
+        </div>
+        {user?.role === 'admin' && (
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setTargetsOpen(true)}>
+            <Settings size={14} /> Edit Targets
+          </Button>
+        )}
       </div>
+
+      <GTrackingTargetsDialog open={targetsOpen} onClose={() => setTargetsOpen(false)} />
 
       <div className="p-6 flex flex-col gap-6">
         <StatusTable items={items} />

@@ -10,6 +10,8 @@ export interface GItemSolutionMapEntry {
   status_color: string
   solution_map_id: number
   version: number
+  is_g_tracking: boolean
+  g_complete_date: string | null
 }
 
 export interface GItemEntry {

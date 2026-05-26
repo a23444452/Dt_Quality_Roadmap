@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { Star } from 'lucide-react'
 import apiClient from '@/lib/api-client'
 import type { GItemEntry, GItemSolutionMapEntry } from './types'
 import type { User } from '@/types/auth'
@@ -7,7 +8,6 @@ import type { User } from '@/types/auth'
 interface Props {
   item: GItemEntry
   user: User | null
-  /** All status options available to change to (for the editor). */
   statuses: { id: number; code: string; name: string; color: string }[]
   selectedPlantIds?: number[]
 }
@@ -19,7 +19,6 @@ export function GItemRowExpanded({ item, user, statuses, selectedPlantIds }: Pro
   const [editing, setEditing] = useState<CellCoord | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Build unique plants and lines for this solution, filtered by selectedPlantIds
   const { plants, lines, cellMap } = useMemo(() => {
     const filterSet = selectedPlantIds && selectedPlantIds.length > 0
       ? new Set(selectedPlantIds)
@@ -50,7 +49,6 @@ export function GItemRowExpanded({ item, user, statuses, selectedPlantIds }: Pro
     if (user.role === 'admin') return true
     if (user.role !== 'editor') return false
     const plantMatch = user.plants?.some((p) => p.id === plantId) ?? false
-    // Process name match is an approximation; the backend enforces precise scope.
     const processMatch = user.processes?.some((p) => p.name === item.process) ?? false
     return plantMatch && processMatch
   }
@@ -88,6 +86,39 @@ export function GItemRowExpanded({ item, user, statuses, selectedPlantIds }: Pro
       } else {
         setError(`Save failed (${status ?? 'network'}): ${detailText}`)
       }
+    }
+  }
+
+  async function toggleGTracking(cell: GItemSolutionMapEntry, newDate?: string) {
+    setError(null)
+    const newTracking = !cell.is_g_tracking
+    try {
+      await apiClient.put(`/solution-map/${cell.solution_map_id}/g-tracking`, {
+        is_g_tracking: newTracking,
+        g_complete_date: newTracking ? (newDate || cell.g_complete_date) : null,
+      })
+      qc.invalidateQueries({ queryKey: ['g-items'] })
+      qc.invalidateQueries({ queryKey: ['g-tracking'] })
+    } catch (err) {
+      const axiosErr = err as { response?: { status?: number; data?: { detail?: unknown } }; message?: string }
+      const detail = axiosErr?.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : axiosErr?.message ?? 'Failed to update')
+    }
+  }
+
+  async function updateCompleteDate(cell: GItemSolutionMapEntry, dateStr: string) {
+    setError(null)
+    try {
+      await apiClient.put(`/solution-map/${cell.solution_map_id}/g-tracking`, {
+        is_g_tracking: true,
+        g_complete_date: dateStr || null,
+      })
+      qc.invalidateQueries({ queryKey: ['g-items'] })
+      qc.invalidateQueries({ queryKey: ['g-tracking'] })
+    } catch (err) {
+      const axiosErr = err as { response?: { status?: number; data?: { detail?: unknown } }; message?: string }
+      const detail = axiosErr?.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : axiosErr?.message ?? 'Failed to update')
     }
   }
 
@@ -139,14 +170,40 @@ export function GItemRowExpanded({ item, user, statuses, selectedPlantIds }: Pro
                 }
                 const editable = canEditCell(p.id)
                 return (
-                  <td
-                    key={ln.id}
-                    className={`px-2 py-1 border text-center whitespace-nowrap ${editable ? 'cursor-pointer hover:opacity-80' : ''}`}
-                    style={{ backgroundColor: cell.status_color, color: '#fff' }}
-                    title={editable ? 'Click to edit' : 'Out of your permission scope'}
-                    onClick={() => editable && setEditing({ plantId: p.id, lineId: ln.id })}
-                  >
-                    {cell.status_code}
+                  <td key={ln.id} className="px-1 py-1 border text-center whitespace-nowrap">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div
+                        className={`px-2 py-0.5 rounded text-xs text-white ${editable ? 'cursor-pointer hover:opacity-80' : ''}`}
+                        style={{ backgroundColor: cell.status_color }}
+                        title={editable ? 'Click to edit status' : ''}
+                        onClick={() => editable && setEditing({ plantId: p.id, lineId: ln.id })}
+                      >
+                        {cell.status_code}
+                      </div>
+                      {editable && (
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => toggleGTracking(cell)}
+                            className={`p-0.5 rounded ${cell.is_g_tracking ? 'text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}
+                            title={cell.is_g_tracking ? 'Remove from G$ Tracking' : 'Add to G$ Tracking'}
+                          >
+                            <Star size={12} fill={cell.is_g_tracking ? 'currentColor' : 'none'} />
+                          </button>
+                          {cell.is_g_tracking && (
+                            <input
+                              type="date"
+                              className="text-[10px] w-[90px] border rounded px-0.5"
+                              value={cell.g_complete_date ?? ''}
+                              onChange={(e) => updateCompleteDate(cell, e.target.value)}
+                              title="Complete Date"
+                            />
+                          )}
+                        </div>
+                      )}
+                      {!editable && cell.is_g_tracking && (
+                        <Star size={10} className="text-amber-500" fill="currentColor" />
+                      )}
+                    </div>
                   </td>
                 )
               })}

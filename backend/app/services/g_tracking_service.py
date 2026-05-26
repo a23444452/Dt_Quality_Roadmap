@@ -1,65 +1,25 @@
-from datetime import datetime
-from pathlib import Path
+from datetime import date
 
-from openpyxl import load_workbook
+from sqlalchemy.orm import Session
 
-EXCEL_PATH = Path(__file__).resolve().parent.parent.parent.parent / "Quality Roadmap G$ database_Fin_BOD_Dt.xlsx"
+from app.models.g_tracking import GTrackingMonthlyTarget, GTrackingPlantTarget
+from app.models.plant import Plant, TankLine
+from app.models.solution import Solution
+from app.models.solution_map import SolutionMap
+from app.models.status_definition import StatusDefinition
 
 
-def get_tracking_data() -> dict:
-    wb = load_workbook(EXCEL_PATH, data_only=True)
+def get_tracking_data(db: Session, year: int | None = None) -> dict:
+    if year is None:
+        year = date.today().year
 
-    # Parse 2026 sheet
-    ws = wb["2026"]
-    items = []
-    for r in range(2, ws.max_row + 1):
-        plant = ws.cell(r, 1).value
-        if not plant:
-            continue
-        complete_date = ws.cell(r, 5).value
-        planned_date = ws.cell(r, 7).value
-        items.append({
-            "plant": str(plant).strip(),
-            "line": str(ws.cell(r, 2).value or "").strip(),
-            "category": str(ws.cell(r, 3).value or "").strip(),
-            "status": str(ws.cell(r, 4).value or "").strip(),
-            "complete_date": complete_date.strftime("%Y-%m-%d") if isinstance(complete_date, datetime) else None,
-            "planned_date": planned_date.strftime("%Y-%m-%d") if isinstance(planned_date, datetime) else None,
-            "owner": str(ws.cell(r, 8).value or "").strip(),
-            "class": str(ws.cell(r, 9).value or "").strip(),
-        })
+    items = _get_tracking_items(db, year)
+    monthly_targets = _get_monthly_targets(db, year)
+    plant_targets = _get_plant_targets(db)
 
-    # Parse G$ BS monthly (2026)
-    ws_monthly = wb["G$ BS monthly (2026)"]
-    monthly_targets = []
-    for r in range(2, ws_monthly.max_row + 1):
-        month = ws_monthly.cell(r, 1).value
-        if not month:
-            continue
-        monthly_targets.append({
-            "month": str(month).strip(),
-            "num": int(ws_monthly.cell(r, 2).value or 0),
-            "budget": round(float(ws_monthly.cell(r, 3).value or 0), 2),
-            "stretch": round(float(ws_monthly.cell(r, 4).value or 0), 2),
-        })
-
-    # Parse G$ BS plant (2026)
-    ws_plant = wb["G$ BS plant (2026)"]
-    plant_targets = []
-    for r in range(2, ws_plant.max_row + 1):
-        plant = ws_plant.cell(r, 1).value
-        if not plant:
-            continue
-        plant_targets.append({
-            "plant": str(plant).strip(),
-            "budget": int(ws_plant.cell(r, 2).value or 0),
-            "stretch": int(ws_plant.cell(r, 3).value or 0),
-        })
-
-    # Compute monthly actual cumulative completions
     monthly_actuals: dict[int, int] = {}
     for item in items:
-        if item["status"] == "Complete" and item["complete_date"]:
+        if item["complete_date"]:
             month_num = int(item["complete_date"].split("-")[1])
             monthly_actuals[month_num] = monthly_actuals.get(month_num, 0) + 1
 
@@ -73,3 +33,75 @@ def get_tracking_data() -> dict:
         "monthly_targets": monthly_targets,
         "plant_targets": plant_targets,
     }
+
+
+def _get_tracking_items(db: Session, year: int) -> list[dict]:
+    rows = (
+        db.query(SolutionMap, Solution, TankLine, Plant, StatusDefinition)
+        .join(Solution, SolutionMap.solution_id == Solution.id)
+        .join(TankLine, SolutionMap.tank_line_id == TankLine.id)
+        .join(Plant, TankLine.plant_id == Plant.id)
+        .join(StatusDefinition, SolutionMap.status_id == StatusDefinition.id)
+        .filter(SolutionMap.is_g_tracking == True)  # noqa: E712
+        .all()
+    )
+
+    items = []
+    for sm, sol, tl, plant, status in rows:
+        complete_date_str = sm.g_complete_date.isoformat() if sm.g_complete_date else None
+        is_complete = sm.g_complete_date is not None
+        items.append({
+            "plant": plant.code,
+            "line": tl.name,
+            "category": sol.name,
+            "status": "Complete" if is_complete else "Not Complete",
+            "complete_date": complete_date_str,
+            "planned_date": None,
+            "owner": "",
+            "class": "D^t",
+        })
+
+    return items
+
+
+def _get_monthly_targets(db: Session, year: int) -> list[dict]:
+    rows = (
+        db.query(GTrackingMonthlyTarget)
+        .filter(GTrackingMonthlyTarget.year == year)
+        .order_by(GTrackingMonthlyTarget.month)
+        .all()
+    )
+
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    targets = []
+    for r in rows:
+        targets.append({
+            "month": month_names[r.month - 1],
+            "num": r.month,
+            "budget": round(r.budget, 2),
+            "stretch": round(r.stretch, 2),
+            "actual_cumulative": 0,
+        })
+
+    return targets
+
+
+def _get_plant_targets(db: Session) -> list[dict]:
+    rows = (
+        db.query(GTrackingPlantTarget, Plant)
+        .join(Plant, GTrackingPlantTarget.plant_id == Plant.id)
+        .order_by(Plant.sort_order)
+        .all()
+    )
+
+    targets = []
+    for r, plant in rows:
+        targets.append({
+            "plant": plant.code,
+            "budget": r.budget,
+            "stretch": r.stretch,
+        })
+
+    return targets

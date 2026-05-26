@@ -91,6 +91,8 @@ def list_g_items(
             "status_color": status.color,
             "solution_map_id": sm.id,
             "version": sm.version,
+            "is_g_tracking": sm.is_g_tracking,
+            "g_complete_date": sm.g_complete_date.isoformat() if sm.g_complete_date else None,
         })
 
     items: list[dict[str, Any]] = []
@@ -145,6 +147,8 @@ def _serialize_g_item(db: Session, sol: Solution) -> dict[str, Any]:
                 "status_color": status.color,
                 "solution_map_id": sm.id,
                 "version": sm.version,
+                "is_g_tracking": sm.is_g_tracking,
+                "g_complete_date": sm.g_complete_date.isoformat() if sm.g_complete_date else None,
             }
             for sm, line, plant, status in sm_rows
         ],

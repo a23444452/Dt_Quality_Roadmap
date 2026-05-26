@@ -146,6 +146,65 @@ Provides advanced process data analysis capabilities.
 
 ---
 
+### G$ Management (Goal Sharing Management)
+
+Manage Goal Sharing (G$) items including creation, editing, and tracking.
+
+**How to Use**:
+
+1. **Filter**: Use the filter bar at the top to filter G$ items by Plant or Process
+2. **Browse**: The paginated table lists all G$ items with the following information:
+   - Solution name
+   - Associated Plant / Process / Station
+   - Target date and status
+3. **Edit** (Editor/Admin only): Click an item to open the edit dialog, where you can modify status and related information
+
+**Permission Note**: Editors can only edit G$ items within their assigned Plant and Process intersection.
+
+---
+
+### G$ Tracking (Goal Sharing Tracking Dashboard)
+
+Provides progress tracking and visual analysis for G$ items, showing the annual Goal Sharing target achievement status.
+
+**Sections**:
+
+#### 1. Status Table
+Lists the execution status of all D^t items:
+
+| Column | Description |
+|--------|-------------|
+| Solution | D^t Solution name |
+| Status | Completion status (Complete / In Progress) |
+| Plant | Associated plant |
+| Complete Date | Date of completion |
+| Line/Tank | Associated production line |
+| Category | Defect category |
+
+#### 2. Monthly Trend Chart
+- **Bar chart**: Monthly cumulative actual completion count (Actual)
+- **Lines**: Budget target line and Stretch target line
+- Quickly assess whether monthly progress meets targets
+
+#### 3. Solution Bar Chart
+- Horizontal stacked bar chart grouped by Defect Category
+- Each category shows Complete vs. Not Complete counts
+- Quickly grasp the completion ratio for each category
+
+#### 4. Plant Target Chart
+- Stacked bar chart grouped by Plant
+- Overlaid with Budget and Stretch target horizontal lines
+- Compare each plant's completion count against annual targets
+
+**How to Use**:
+1. Navigate to the G$ Tracking page
+2. Review the Status Table to understand individual item status
+3. Use the Monthly Trend Chart to track progress over time
+4. Analyze category completion rates via the Solution Bar Chart
+5. Compare plant performance using the Plant Target Chart
+
+---
+
 ### Data Management
 
 Manage various master data in the system.
@@ -245,6 +304,9 @@ Has full system access:
 | View Dashboard | ✓ | ✓ | ✓ |
 | View Solution Map | ✓ | ✓ | ✓ |
 | Edit Solution Map | ✗ | Limited scope | ✓ |
+| View G$ Management | ✓ | ✓ | ✓ |
+| Edit G$ Management | ✗ | Limited scope | ✓ |
+| View G$ Tracking | ✓ | ✓ | ✓ |
 | View Data Management | ✓ | ✓ | ✓ |
 | Edit Data Management | ✗ | Limited scope | ✓ |
 | User Management | ✗ | ✗ | ✓ |
@@ -359,4 +421,4 @@ Administrator contact information is displayed at:
 
 ---
 
-*Last Updated: 2026-05-22*
+*Last Updated: 2026-05-26*

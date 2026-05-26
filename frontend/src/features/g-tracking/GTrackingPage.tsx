@@ -59,7 +59,7 @@ export function GTrackingPage() {
   return (
     <div className="flex flex-col h-full overflow-auto">
       <div className="px-6 py-4 border-b bg-white">
-        <h1 className="text-xl font-semibold">2026 G$ Tracking</h1>
+        <h1 className="text-xl font-semibold">G$ Tracking</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           Goal Sharing completion tracking — {totalComplete}/{totalItems} completed
         </p>
@@ -88,7 +88,7 @@ function StatusTable({ items }: { items: TrackingItem[] }) {
 
   return (
     <div className="rounded-lg border bg-white p-4 overflow-auto max-h-[480px]">
-      <h3 className="font-semibold mb-3">2026 G$ Item Tracking List</h3>
+      <h3 className="font-semibold mb-3">G$ Item Tracking List</h3>
       <table className="w-full text-sm border-collapse">
         <thead className="sticky top-0 bg-gray-50">
           <tr>

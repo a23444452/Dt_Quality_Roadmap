@@ -9,21 +9,27 @@ interface Props {
   user: User | null
   /** All status options available to change to (for the editor). */
   statuses: { id: number; code: string; name: string; color: string }[]
+  selectedPlantIds?: number[]
 }
 
 type CellCoord = { plantId: number; lineId: number }
 
-export function GItemRowExpanded({ item, user, statuses }: Props) {
+export function GItemRowExpanded({ item, user, statuses, selectedPlantIds }: Props) {
   const qc = useQueryClient()
   const [editing, setEditing] = useState<CellCoord | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Build unique plants and lines for this solution
+  // Build unique plants and lines for this solution, filtered by selectedPlantIds
   const { plants, lines, cellMap } = useMemo(() => {
+    const filterSet = selectedPlantIds && selectedPlantIds.length > 0
+      ? new Set(selectedPlantIds)
+      : null
+
     const plantIds = new Set<number>()
     const lineIds = new Set<number>()
     const cm = new Map<string, GItemSolutionMapEntry>()
     for (const sm of item.solution_map) {
+      if (filterSet && !filterSet.has(sm.plant_id)) continue
       plantIds.add(sm.plant_id)
       lineIds.add(sm.tank_line_id)
       cm.set(`${sm.plant_id}:${sm.tank_line_id}`, sm)
@@ -37,7 +43,7 @@ export function GItemRowExpanded({ item, user, statuses }: Props) {
       return { id, name: first.tank_line_name, plant_id: first.plant_id }
     })
     return { plants: plantList, lines: lineList, cellMap: cm }
-  }, [item.solution_map])
+  }, [item.solution_map, selectedPlantIds])
 
   function canEditCell(plantId: number): boolean {
     if (!user) return false
@@ -101,7 +107,7 @@ export function GItemRowExpanded({ item, user, statuses }: Props) {
         </div>
       )}
       <div className="overflow-auto max-h-[60vh] border rounded bg-white">
-        <table className="text-sm border-collapse">
+        <table className="text-sm border-collapse min-w-max">
           <thead className="sticky top-0 bg-gray-100 z-10">
             <tr>
               <th className="text-left px-2 py-1 text-xs font-semibold text-gray-600 border sticky left-0 bg-gray-100 z-20 whitespace-nowrap">

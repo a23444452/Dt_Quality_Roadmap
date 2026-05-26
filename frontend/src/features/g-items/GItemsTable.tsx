@@ -19,10 +19,11 @@ interface Props {
   items: GItemEntry[]
   user: User | null
   statuses: { id: number; code: string; name: string; color: string }[]
+  selectedPlantIds?: number[]
   onEdit: (item: GItemEntry) => void
 }
 
-export function GItemsTable({ items, user, statuses, onEdit }: Props) {
+export function GItemsTable({ items, user, statuses, selectedPlantIds, onEdit }: Props) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const isAdmin = user?.role === 'admin'
 
@@ -109,6 +110,7 @@ export function GItemsTable({ items, user, statuses, onEdit }: Props) {
                       item={it}
                       user={user}
                       statuses={statuses}
+                      selectedPlantIds={selectedPlantIds}
                     />
                   </TableCell>
                 </TableRow>

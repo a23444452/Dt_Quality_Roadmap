@@ -89,6 +89,7 @@ export function GItemsPage() {
             items={items}
             user={user}
             statuses={statuses ?? []}
+            selectedPlantIds={filters.plant_ids}
             onEdit={setEditing}
           />
         )}

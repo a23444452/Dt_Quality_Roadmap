@@ -39,4 +39,5 @@ class GItemResponse(BaseModel):
     quality_attribute: str | None = None
     reason: ReasonCode | None = None
     remark: str | None = None
+    document_filename: str | None = None
     solution_map: list[GItemSolutionMapEntry] = []

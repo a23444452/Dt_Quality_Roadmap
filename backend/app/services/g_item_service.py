@@ -105,6 +105,7 @@ def list_g_items(
             "quality_attribute": sol.quality_attribute,
             "reason": sol.reason,
             "remark": sol.remark,
+            "document_filename": sol.document_filename,
             "solution_map": sm_by_solution.get(sol.id, []),
         })
 
@@ -136,6 +137,7 @@ def _serialize_g_item(db: Session, sol: Solution) -> dict[str, Any]:
         "quality_attribute": sol.quality_attribute,
         "reason": sol.reason,
         "remark": sol.remark,
+        "document_filename": sol.document_filename,
         "solution_map": [
             {
                 "plant_id": plant.id,

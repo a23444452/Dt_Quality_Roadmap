@@ -22,6 +22,7 @@ export interface GItemEntry {
   quality_attribute: string | null
   reason: ReasonCode | null
   remark: string | null
+  document_filename: string | null
   solution_map: GItemSolutionMapEntry[]
 }
 

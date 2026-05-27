@@ -213,7 +213,7 @@ export function GItemRowExpanded({ item, user, statuses, selectedPlantIds }: Pro
       </table>
 
       {editing && (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2 sticky left-0">
           <span className="text-sm">Change to:</span>
           {statuses.map((s) => (
             <button

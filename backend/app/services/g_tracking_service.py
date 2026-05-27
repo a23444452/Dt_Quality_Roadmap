@@ -35,6 +35,9 @@ def get_tracking_data(db: Session, year: int | None = None) -> dict:
     }
 
 
+EXCLUDED_PLANT_CODES = {"JVCD", "JVXY"}
+
+
 def _get_tracking_items(db: Session, year: int) -> list[dict]:
     rows = (
         db.query(SolutionMap, Solution, TankLine, Plant, StatusDefinition)
@@ -43,6 +46,7 @@ def _get_tracking_items(db: Session, year: int) -> list[dict]:
         .join(Plant, TankLine.plant_id == Plant.id)
         .join(StatusDefinition, SolutionMap.status_id == StatusDefinition.id)
         .filter(SolutionMap.is_g_tracking == True)  # noqa: E712
+        .filter(Plant.code.notin_(EXCLUDED_PLANT_CODES))
         .all()
     )
 
@@ -92,6 +96,7 @@ def _get_plant_targets(db: Session) -> list[dict]:
     rows = (
         db.query(GTrackingPlantTarget, Plant)
         .join(Plant, GTrackingPlantTarget.plant_id == Plant.id)
+        .filter(Plant.code.notin_(EXCLUDED_PLANT_CODES))
         .order_by(Plant.sort_order)
         .all()
     )

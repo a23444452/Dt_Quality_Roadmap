@@ -7,7 +7,7 @@ from app.models.plant import Plant
 from app.models.user import User
 from app.schemas.common import ok
 from app.schemas.g_tracking import TargetsUpdate
-from app.services.g_tracking_service import get_tracking_data
+from app.services.g_tracking_service import get_tracking_data, EXCLUDED_PLANT_CODES
 
 router = APIRouter(prefix="/api/v1/g-tracking", tags=["g-tracking"])
 
@@ -35,7 +35,7 @@ def get_targets(
         .all()
     )
 
-    all_plants = db.query(Plant).filter(Plant.is_active == True).order_by(Plant.sort_order).all()  # noqa: E712
+    all_plants = db.query(Plant).filter(Plant.is_active == True, Plant.code.notin_(EXCLUDED_PLANT_CODES)).order_by(Plant.sort_order).all()  # noqa: E712
     target_map = {
         r.plant_id: r
         for r in db.query(GTrackingPlantTarget)

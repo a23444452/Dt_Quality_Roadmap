@@ -49,6 +49,14 @@ export function PivotTable({ solutions, lines, statuses, canEdit, user }: PivotT
     return hasProcessAccess && hasPlantAccess
   }, [canEdit, user])
 
+  const INFO_COL_SIZES = [130, 150, 100, 180, 200]
+  const INFO_COL_COUNT = INFO_COL_SIZES.length
+  const INFO_COL_LEFTS = INFO_COL_SIZES.reduce<number[]>((acc, size, i) => {
+    acc.push(i === 0 ? 0 : acc[i - 1] + INFO_COL_SIZES[i - 1])
+    return acc
+  }, [])
+  const INFO_COL_TOTAL = INFO_COL_SIZES.reduce((a, b) => a + b, 0)
+
   const columns = useMemo(() => {
     const infoColumns = [
       columnHelper.accessor('defect_category', {
@@ -142,7 +150,11 @@ export function PivotTable({ solutions, lines, statuses, canEdit, user }: PivotT
           <thead>
             {/* Plant group header row */}
             <tr className="bg-gray-100">
-              <th colSpan={5} className="border border-gray-200 px-2 py-1" />
+              <th
+                colSpan={INFO_COL_COUNT}
+                className="border border-gray-200 px-2 py-1 sticky left-0 bg-gray-100 z-20"
+                style={{ minWidth: INFO_COL_TOTAL }}
+              />
               {Object.entries(plantGroups).map(([plant, plantLines]) => (
                 <th
                   key={plant}
@@ -156,15 +168,23 @@ export function PivotTable({ solutions, lines, statuses, canEdit, user }: PivotT
             {/* Column headers */}
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="bg-gray-50">
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="border border-gray-200 px-2 py-1.5 text-left text-xs font-medium text-gray-600 whitespace-nowrap sticky top-0 bg-gray-50 z-10"
-                    style={{ width: header.getSize() }}
-                  >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
+                {headerGroup.headers.map((header, colIdx) => {
+                  const isInfoCol = colIdx < INFO_COL_COUNT
+                  return (
+                    <th
+                      key={header.id}
+                      className={`border border-gray-200 px-2 py-1.5 text-left text-xs font-medium text-gray-600 whitespace-nowrap sticky top-0 bg-gray-50 ${
+                        isInfoCol ? 'z-[30]' : 'z-10'
+                      }`}
+                      style={{
+                        width: header.getSize(),
+                        ...(isInfoCol ? { left: INFO_COL_LEFTS[colIdx] } : {}),
+                      }}
+                    >
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  )
+                })}
               </tr>
             ))}
           </thead>
@@ -179,22 +199,27 @@ export function PivotTable({ solutions, lines, statuses, canEdit, user }: PivotT
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row, rowIdx) => (
                 <tr key={row.id} className="hover:bg-gray-50 even:bg-gray-50/30">
-                  {row.getVisibleCells().map((cell) => {
+                  {row.getVisibleCells().map((cell, colIdx) => {
                     const isLineCell = cell.column.id.startsWith('line_')
+                    const isInfoCol = colIdx < INFO_COL_COUNT
                     const lineKey = isLineCell ? cell.column.id.replace('line_', '') : null
                     const line = lineKey ? lines.find((l) => l.key === lineKey) : null
                     const cellEditable = isLineCell && line && canEditCell(row.original, line)
+                    const rowBg = rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
 
                     return (
                       <td
                         key={cell.id}
                         className={`border border-gray-200 px-2 py-1 ${
+                          isInfoCol ? `sticky z-10 ${rowBg}` : ''
+                        } ${
                           cellEditable
                             ? 'cursor-pointer hover:bg-blue-50 transition-colors'
                             : ''
                         }`}
+                        style={isInfoCol ? { left: INFO_COL_LEFTS[colIdx] } : undefined}
                         onClick={() => {
                           if (isLineCell && line) handleCellClick(row.original, line)
                         }}

@@ -7,15 +7,15 @@ import type { ApiResponse } from '@/types/api'
 
 interface MonthlyRow {
   month: number
-  budget: number
-  stretch: number
+  budget: number | string
+  stretch: number | string
 }
 
 interface PlantRow {
   plant_id: number
   plant_name: string
-  budget: number
-  stretch: number
+  budget: number | string
+  stretch: number | string
 }
 
 interface TargetsData {
@@ -58,8 +58,8 @@ export function GTrackingTargetsDialog({ open, onClose }: { open: boolean; onClo
     try {
       await apiClient.put('/g-tracking/targets', {
         year: 2026,
-        monthly,
-        plants: plants.map((p) => ({ plant_id: p.plant_id, budget: p.budget, stretch: p.stretch })),
+        monthly: monthly.map((m) => ({ month: m.month, budget: Number(m.budget) || 0, stretch: Number(m.stretch) || 0 })),
+        plants: plants.map((p) => ({ plant_id: p.plant_id, budget: Number(p.budget) || 0, stretch: Number(p.stretch) || 0 })),
       })
       qc.invalidateQueries({ queryKey: ['g-tracking'] })
       qc.invalidateQueries({ queryKey: ['g-tracking-targets'] })
@@ -74,13 +74,13 @@ export function GTrackingTargetsDialog({ open, onClose }: { open: boolean; onClo
 
   function updateMonthly(idx: number, field: 'budget' | 'stretch', value: string) {
     setMonthly((prev) =>
-      prev.map((r, i) => (i === idx ? { ...r, [field]: parseFloat(value) || 0 } : r)),
+      prev.map((r, i) => (i === idx ? { ...r, [field]: value === '' ? '' : parseFloat(value) } : r)),
     )
   }
 
   function updatePlant(idx: number, field: 'budget' | 'stretch', value: string) {
     setPlants((prev) =>
-      prev.map((r, i) => (i === idx ? { ...r, [field]: parseInt(value) || 0 } : r)),
+      prev.map((r, i) => (i === idx ? { ...r, [field]: value === '' ? '' : parseInt(value) } : r)),
     )
   }
 

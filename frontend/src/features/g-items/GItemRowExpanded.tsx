@@ -137,6 +137,7 @@ export function GItemRowExpanded({ item, user, statuses, selectedPlantIds }: Pro
           {error}
         </div>
       )}
+      <div className="overflow-x-auto">
       <table className="text-sm border-collapse min-w-max">
         <thead className="sticky top-0 bg-gray-100 z-10">
           <tr>
@@ -211,9 +212,10 @@ export function GItemRowExpanded({ item, user, statuses, selectedPlantIds }: Pro
           ))}
         </tbody>
       </table>
+      </div>
 
       {editing && (
-        <div className="mt-3 flex items-center gap-2 sticky left-0">
+        <div className="mt-3 flex items-center gap-2">
           <span className="text-sm">Change to:</span>
           {statuses.map((s) => (
             <button

@@ -119,7 +119,7 @@ export function GItemsPage() {
               <X size={14} />
             </Button>
           </div>
-          <div className="overflow-x-auto overflow-y-auto max-h-[40vh]">
+          <div className="overflow-y-auto max-h-[40vh]">
             <GItemRowExpanded
               item={expandedItem}
               user={user}

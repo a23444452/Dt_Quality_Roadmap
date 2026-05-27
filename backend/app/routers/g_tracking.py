@@ -34,13 +34,24 @@ def get_targets(
         .order_by(GTrackingMonthlyTarget.month)
         .all()
     )
-    plants_rows = (
-        db.query(GTrackingPlantTarget, Plant)
-        .join(Plant, GTrackingPlantTarget.plant_id == Plant.id)
+
+    all_plants = db.query(Plant).filter(Plant.is_active == True).order_by(Plant.sort_order).all()  # noqa: E712
+    target_map = {
+        r.plant_id: r
+        for r in db.query(GTrackingPlantTarget)
         .filter(GTrackingPlantTarget.year == year)
-        .order_by(Plant.sort_order)
         .all()
-    )
+    }
+
+    plants_data = []
+    for plant in all_plants:
+        target = target_map.get(plant.id)
+        plants_data.append({
+            "plant_id": plant.id,
+            "plant_name": plant.name,
+            "budget": target.budget if target else 0,
+            "stretch": target.stretch if target else 0,
+        })
 
     return ok({
         "year": year,
@@ -48,10 +59,7 @@ def get_targets(
             {"month": r.month, "budget": r.budget, "stretch": r.stretch}
             for r in monthly
         ],
-        "plants": [
-            {"plant_id": plant.id, "plant_name": plant.name, "budget": r.budget, "stretch": r.stretch}
-            for r, plant in plants_rows
-        ],
+        "plants": plants_data,
     })
 
 

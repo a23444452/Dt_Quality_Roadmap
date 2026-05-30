@@ -1,3 +1,4 @@
+from app.models.agent import AgentConversation
 from app.models.audit_log import AuditLog
 from app.models.defect import DefectCategory, DefectType
 from app.models.plant import Plant, TankLine
@@ -8,6 +9,7 @@ from app.models.status_definition import StatusDefinition
 from app.models.user import User
 
 __all__ = [
+    "AgentConversation",
     "AuditLog",
     "DefectCategory",
     "DefectType",

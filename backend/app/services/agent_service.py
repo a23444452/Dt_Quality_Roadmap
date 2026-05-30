@@ -116,29 +116,91 @@ def invoke_agent(db: Session, messages: list[dict]) -> str:
 
 
 async def stream_agent(db: Session, messages: list[dict]) -> AsyncGenerator[str, None]:
-    """Stream agent response token by token via SSE-compatible yields."""
+    """Stream agent response token by token via SSE-compatible yields.
+
+    Uses astream(stream_mode="messages") which yields (message_chunk, metadata)
+    tuples for all LLM invocations. We filter to only stream the FINAL response
+    (content from the last LLM call, after all tool calls complete).
+
+    Strategy:
+    - Buffer content before any tool interaction (handles direct-answer case)
+    - Discard buffer when tool_calls are detected (intermediate "thinking")
+    - After seeing a tool response, stream subsequent content directly
+    - If new tool_calls appear after tool response (multi-tool), reset and wait
+    - Extract chart_config from tool response messages
+    """
     llm = get_llm()
     tools = build_agent_tools(db)
     agent = create_react_agent(model=llm, tools=tools, prompt=SYSTEM_PROMPT)
 
-    async for event in agent.astream_events(
-        {"messages": messages}, version="v2"
-    ):
-        kind = event["event"]
-        if kind == "on_chat_model_stream":
-            content = event["data"]["chunk"].content
-            if content:
-                yield json.dumps({"type": "token", "content": content}) + "\n"
-        elif kind == "on_tool_end":
-            try:
-                tool_output = json.loads(event["data"]["output"])
-                if tool_output.get("chart_config"):
-                    yield json.dumps({
-                        "type": "chart",
-                        "chart_config": tool_output["chart_config"],
-                        "data": tool_output["data"],
-                    }) + "\n"
-            except (json.JSONDecodeError, TypeError):
-                pass
+    any_tool_called = False
+    streaming_final = False
+    pre_tool_buffer: list[str] = []
+    charts: list[dict] = []
 
-    yield json.dumps({"type": "done"}) + "\n"
+    try:
+        async for chunk in agent.astream(
+            {"messages": messages}, stream_mode="messages"
+        ):
+            msg, metadata = chunk
+
+            # Skip chunks with tool_calls (intermediate LLM deciding to call tool)
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                any_tool_called = True
+                streaming_final = False
+                pre_tool_buffer = []
+                continue
+            if hasattr(msg, "tool_call_chunks") and msg.tool_call_chunks:
+                any_tool_called = True
+                streaming_final = False
+                pre_tool_buffer = []
+                continue
+
+            # Tool response message - extract chart data, mark next phase
+            if hasattr(msg, "type") and msg.type == "tool":
+                any_tool_called = True
+                streaming_final = True
+                try:
+                    tool_output = json.loads(msg.content) if isinstance(msg.content, str) else {}
+                    if isinstance(tool_output, dict) and tool_output.get("chart_config"):
+                        raw_data = tool_output.get("data", [])
+                        if isinstance(raw_data, dict) and "chart_data" in raw_data:
+                            chart_array = raw_data["chart_data"]
+                        elif isinstance(raw_data, list):
+                            chart_array = raw_data
+                        else:
+                            chart_array = []
+                        charts.append({
+                            "chart_config": tool_output["chart_config"],
+                            "data": chart_array,
+                        })
+                except (json.JSONDecodeError, TypeError, AttributeError):
+                    pass
+                continue
+
+            content = msg.content if hasattr(msg, "content") else ""
+            if not content:
+                continue
+
+            if streaming_final:
+                yield json.dumps({"type": "token", "content": content})
+            elif not any_tool_called:
+                pre_tool_buffer.append(content)
+
+    except Exception as e:
+        yield json.dumps({"type": "token", "content": f"\n\n[Error: {e!s}]"})
+
+    # If agent answered directly without tools, flush the buffer
+    if not any_tool_called and pre_tool_buffer:
+        for content in pre_tool_buffer:
+            yield json.dumps({"type": "token", "content": content})
+
+    # Emit chart events extracted from tool responses
+    for chart_data in charts:
+        yield json.dumps({
+            "type": "chart",
+            "chart_config": chart_data["chart_config"],
+            "data": chart_data.get("data", []),
+        })
+
+    yield json.dumps({"type": "done"})

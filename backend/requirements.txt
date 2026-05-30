@@ -17,3 +17,7 @@ ldap3==2.9.1
 pyasn1==0.5.1
 pytest==8.3.*
 pytest-asyncio==0.25.*
+langchain==0.3.27
+langchain-openai==0.3.28
+langchain-core==0.3.72
+langgraph==0.6.2

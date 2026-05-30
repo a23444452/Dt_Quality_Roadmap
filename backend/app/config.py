@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     ad_required_group: str = "Quality-Roadmap-Access"
     ldap_bind_dn: str = ""  # NTLM format: ap\\svc_account
     ldap_bind_password: str = ""
+    corning_ai_api_key: str = ""
+    corning_ai_base_url: str = "https://ai-platform.corning.com"
+    agent_model: str = "us.anthropic.claude-sonnet-4-6"
+    agent_max_messages: int = 10
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

@@ -150,6 +150,8 @@ export function AgentPage() {
         <div className="border-t p-4">
           <div className="mx-auto flex max-w-3xl items-center gap-3">
             <input
+              id="agent-chat-input"
+              name="agent-chat-input"
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -158,6 +160,7 @@ export function AgentPage() {
               className="flex-1 rounded-lg border px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
               disabled={isStreaming}
               maxLength={2000}
+              autoComplete="off"
             />
             {isStreaming ? (
               <Button onClick={stopStreaming} variant="outline">

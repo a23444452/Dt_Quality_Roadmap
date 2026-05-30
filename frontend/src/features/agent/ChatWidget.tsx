@@ -139,6 +139,8 @@ export function ChatWidget() {
       <div className="border-t p-3">
         <div className="flex items-center gap-2">
           <input
+            id="agent-widget-input"
+            name="agent-widget-input"
             ref={inputRef}
             type="text"
             value={input}
@@ -148,6 +150,7 @@ export function ChatWidget() {
             className="flex-1 rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             disabled={isStreaming}
             maxLength={2000}
+            autoComplete="off"
           />
           {isStreaming ? (
             <Button size="sm" variant="outline" onClick={stopStreaming}>

@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
+import apiClient from '@/lib/api-client'
+import type { ApiResponse } from '@/types/api'
 import type { ChatMessage, ChartData, SSEEvent } from './types'
 
 interface UseAgentChatOptions {
@@ -135,14 +137,11 @@ export function useAgentChat({ onStreamComplete }: UseAgentChatOptions = {}) {
 
   const loadConversation = useCallback(async (convId: string) => {
     try {
-      const token = localStorage.getItem('access_token')
-      const resp = await fetch(`/api/v1/agent/conversations/${convId}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
-      if (!resp.ok) return
-      const result = await resp.json()
-      const history = result.data?.messages || []
-      const loaded: ChatMessage[] = history.map((m: { role: string; content: string }) => ({
+      const resp = await apiClient.get<ApiResponse<{ messages: Array<{ role: string; content: string }> }>>(
+        `/agent/conversations/${convId}`
+      )
+      const history = resp.data.data?.messages || []
+      const loaded: ChatMessage[] = history.map((m) => ({
         id: crypto.randomUUID(),
         role: m.role as 'user' | 'assistant',
         content: m.content,
@@ -151,7 +150,7 @@ export function useAgentChat({ onStreamComplete }: UseAgentChatOptions = {}) {
       setMessages(loaded)
       setConversationId(convId)
     } catch {
-      // ignore load errors
+      // 401 handled by apiClient interceptor
     }
   }, [])
 

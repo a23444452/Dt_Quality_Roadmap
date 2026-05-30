@@ -14,6 +14,7 @@ import {
   Mail,
   DollarSign,
   TrendingUp,
+  Bot,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
@@ -35,6 +36,7 @@ const mainNavItems: NavItem[] = [
   { label: 'Solution Map', icon: Grid3X3, to: '/solution-map' },
   { label: 'Process Analysis', icon: Activity, to: '/analysis/process' },
   { label: 'Data Management', icon: Database, to: '/data-management' },
+  { label: 'AI Assistant', icon: Bot, to: '/agent' },
 ]
 
 const managementNavItems: NavItem[] = [

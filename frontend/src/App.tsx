@@ -17,6 +17,7 @@ import { AdminSettingsPage } from '@/features/admin/AdminSettingsPage'
 import { ProfilePage } from '@/features/auth/ProfilePage'
 import { GItemsPage } from '@/features/g-items/GItemsPage'
 import { GTrackingPage } from '@/features/g-tracking/GTrackingPage'
+import { AgentPage } from '@/features/agent/AgentPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth()
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="admin/g-items" element={<GItemsPage />} />
         <Route path="admin/g-tracking" element={<GTrackingPage />} />
         <Route path="admin/settings" element={<AdminSettingsPage />} />
+        <Route path="agent" element={<AgentPage />} />
       </Route>
     </Routes>
   )

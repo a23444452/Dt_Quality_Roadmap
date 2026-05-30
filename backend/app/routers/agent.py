@@ -87,6 +87,31 @@ async def chat(
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
+@router.get("/conversations/{conversation_id}")
+def get_conversation(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    conv = (
+        db.query(AgentConversation)
+        .filter(
+            AgentConversation.id == conversation_id,
+            AgentConversation.user_id == user.id,
+            AgentConversation.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    if conv is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return ok({
+        "id": conv.id,
+        "title": conv.title,
+        "messages": json.loads(conv.messages),
+        "created_at": conv.created_at.isoformat(),
+    })
+
+
 @router.get("/conversations")
 def list_conversations(
     db: Session = Depends(get_db),

@@ -19,7 +19,7 @@ const QUICKSTART_PROMPTS = [
 
 export function AgentPage() {
   const [input, setInput] = useState('')
-  const { messages, isStreaming, sendMessage, clearChat, stopStreaming } = useAgentChat()
+  const { messages, isStreaming, sendMessage, clearChat, stopStreaming, conversationId, loadConversation } = useAgentChat()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const qc = useQueryClient()
 
@@ -67,11 +67,14 @@ export function AgentPage() {
           {conversations?.map((conv) => (
             <div
               key={conv.id}
-              className="group flex items-center justify-between rounded px-2 py-1.5 text-sm hover:bg-gray-200"
+              onClick={() => loadConversation(conv.id)}
+              className={`group flex items-center justify-between rounded px-2 py-1.5 text-sm cursor-pointer ${
+                conversationId === conv.id ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-200'
+              }`}
             >
               <span className="truncate flex-1">{conv.title}</span>
               <button
-                onClick={() => handleDeleteConversation(conv.id)}
+                onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id) }}
                 className="hidden group-hover:block text-gray-400 hover:text-red-500"
               >
                 <Trash2 size={14} />

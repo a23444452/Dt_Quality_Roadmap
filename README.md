@@ -72,6 +72,33 @@
   - **Plant view** — 各工廠堆疊柱狀圖（完成/未完成）搭配 Budget / Stretch 目標線
   - **資料來源** — 讀取 `Quality Roadmap G$ database_Fin_BOD_Dt.xlsx`，Excel 更新後重整頁面即自動反映
 
+### AI Agent 智慧助手
+- **自然語言查詢** — 用中文或英文提問，AI 根據系統內部資料回答，不會產生幻覺
+- **浮動聊天視窗** — 右下角藍色按鈕，點擊展開 400×500px 聊天面板，不離開當前頁面即可查詢
+- **全頁面模式** — Sidebar 點擊「AI Assistant」進入 `/agent` 頁面，含對話歷史管理
+- **即時串流回應** — SSE (Server-Sent Events) 逐字輸出，打字機效果
+- **自動圖表生成** — 當查詢結果適合視覺化時，自動產生 Bar / Pie / Line / Table 圖表
+- **7 種查詢工具** — 涵蓋 KPI 總覽、工廠覆蓋率、G$ 項目、G$ 追蹤、Solutions 篩選、Solution Map 狀態、製程分析
+- **對話管理** — 支援多輪對話、清除對話、刪除歷史記錄
+- **快速提問建議** — 空白對話時顯示預設提問（如「目前整體 MP 達成率是多少？」）
+- **嚴格資料安全** — 僅回答系統內部資料，不確定時誠實回覆「目前系統中沒有相關資料」
+
+#### 使用方式
+
+1. **快速查詢**：點擊右下角藍色泡泡 → 輸入問題或點擊建議 → 即時獲得回答與圖表
+2. **深入分析**：Sidebar 點擊「AI Assistant」→ 全頁面模式，左側可管理歷史對話
+
+#### 範例問題
+
+| 問題 | 回應內容 |
+|------|---------|
+| 目前整體 MP 達成率是多少？ | KPI 數據 + 圓餅圖 |
+| 哪個工廠的覆蓋率最低？ | 各工廠覆蓋率排名 + 長條圖 |
+| G$ 項目今年的進度如何？ | 月度累計完成數 vs 目標 + 趨勢圖 |
+| Melting 製程有哪些 solutions？ | Solution 清單 + 表格 |
+| 各狀態的 solution 數量分佈？ | 狀態分佈 + 圓餅圖 |
+| 哪些 station 的 solution 最多？ | 站點排名 + 長條圖 |
+
 ### Admin 管理後台
 - **用戶管理** — 審核新用戶註冊 (Approve/Reject)、停用帳號、重設密碼
 - **狀態篩選** — User Management 提供 5 個分頁：All / Pending / Active / Disabled / Rejected
@@ -105,13 +132,14 @@
 │                   Frontend                       │
 │  React 18 + TypeScript + Vite                    │
 │  Tailwind CSS v4 + shadcn/ui                     │
-│  ECharts (Sankey/流程圖) + TanStack Table (樞紐表) │
+│  ECharts (Sankey/流程圖/Agent圖表) + TanStack Table│
 │  TanStack Query (資料快取) + React Router         │
 ├─────────────────────────────────────────────────┤
 │                   Backend                        │
 │  FastAPI + Python 3.11+                          │
 │  SQLAlchemy 2.0 + Alembic (Migrations)           │
 │  Pydantic v2 (驗證) + JWT (認證)                  │
+│  LangGraph + LangChain (AI Agent)                │
 ├─────────────────────────────────────────────────┤
 │                  Database                        │
 │  MS SQL Server (Production)                      │
@@ -1024,6 +1052,9 @@ curl http://your-server/api/v1/dashboard/summary \
 | `/api/v1/import-export/template` | GET | 下載匯入範本 | Public |
 | `/api/v1/g-items` | CRUD | G$ Items 管理 | GET: Viewer+ / Write: Admin |
 | `/api/v1/g-tracking/data` | GET | G$ Tracking 圖表資料（讀取 Excel） | Viewer+ |
+| `/api/v1/agent/chat` | POST | AI Agent 對話（SSE 串流） | Viewer+ |
+| `/api/v1/agent/conversations` | GET | 取得對話歷史列表 | Viewer+ |
+| `/api/v1/agent/conversations/{id}` | DELETE | 刪除對話（軟刪除） | Viewer+ |
 | `/api/v1/users` | GET | 用戶列表 | Admin |
 | `/api/v1/users/{id}/approve` | PUT | 審核通過 | Admin |
 | `/api/v1/users/{id}/reject` | PUT | 審核拒絕 | Admin |
@@ -1072,6 +1103,7 @@ Dt_Quality_Roadmap/
 │   │   │   ├── analysis/           # 缺陷/製程分析
 │   │   │   ├── g-items/            # G$ Management 管理頁面
 │   │   │   ├── g-tracking/         # G$ Tracking 追蹤圖表
+│   │   │   ├── agent/              # AI Agent (ChatWidget, AgentPage, useAgentChat)
 │   │   │   └── admin/              # 用戶管理 + 系統設定
 │   │   ├── hooks/                  # useSolutionMap, useReferenceData
 │   │   ├── lib/                    # API Client, Query Client
@@ -1125,6 +1157,8 @@ docker-compose exec backend python -m app.seed
 | `SMTP_USER` | SMTP 帳號 (外部 SMTP 用) | (空) |
 | `SMTP_PASSWORD` | SMTP 密碼 (外部 SMTP 用) | (空) |
 | `SMTP_SENDER` | Email 寄件者地址 | `DtRoadmap@corning.com` |
+| `CORNING_AI_API_KEY` | Corning AI Platform API Key（AI Agent 功能必要） | (空) |
+| `AGENT_MODEL` | AI Agent 使用的模型 | `us.anthropic.claude-sonnet-4-6` |
 | `GUNICORN_WORKERS` | Worker 進程數量 | CPU核心數 × 2 + 1 |
 | `GUNICORN_TIMEOUT` | 請求超時時間 (秒) | `120` |
 | `GUNICORN_LOG_LEVEL` | 日誌等級 (debug/info/warning/error) | `info` |
@@ -1545,7 +1579,7 @@ npx tsc --noEmit
 - **AD Group 閘門** — 透過 LDAP（NTLM 認證）遞迴查詢使用者是否屬於 `Quality-Roadmap-Access` 群組；不在群組 → 403
 - **密碼** — bcrypt 雜湊 (cost factor 12)（本地帳號）
 - **JWT** — HS256 演算法，Access Token 8hr + Refresh Token 7 天 (HttpOnly Cookie)
-- **Rate Limiting** — `/login`、`/sso-login` 5 次/分鐘；`/sso-register` 3 次/分鐘
+- **Rate Limiting** — `/login`、`/sso-login` 5 次/分鐘；`/sso-register` 3 次/分鐘；`/agent/chat` 20 次/分鐘
 - **SQL Injection 防護** — SQLAlchemy 參數化查詢
 - **XSS 防護** — React 自動 escape
 - **CORS** — 限制允許的來源

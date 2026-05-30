@@ -5,7 +5,9 @@
       "Bash(git rebase *)",
       "Bash(git checkout *)",
       "Bash(git pull *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Skill(corning-genai-agent-builder)",
+      "Skill(corning-genai-agent-builder:*)"
     ]
   }
 }

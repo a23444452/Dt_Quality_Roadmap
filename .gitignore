@@ -52,3 +52,30 @@ backend/tmp/
 
 # Claude
 .claude_review_state.json
+.claude/skills/
+.agents/
+skills-lock.json
+
+# CodeGraph
+.codegraph/
+
+# Understand Anything
+.understand-anything/
+
+# Playwright MCP
+.playwright-mcp/
+
+# Excel/Power BI data files
+*.xlsx
+*.pbit
+*.pbix
+
+# Image files
+*.jpg
+*.png
+
+# Scripts (local only)
+scripts/
+
+# Misc
+nul

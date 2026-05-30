@@ -1,11 +1,17 @@
 import { useState, useCallback, useRef } from 'react'
 import type { ChatMessage, ChartData, SSEEvent } from './types'
 
-export function useAgentChat() {
+interface UseAgentChatOptions {
+  onStreamComplete?: () => void
+}
+
+export function useAgentChat({ onStreamComplete }: UseAgentChatOptions = {}) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const onStreamCompleteRef = useRef(onStreamComplete)
+  onStreamCompleteRef.current = onStreamComplete
 
   const sendMessage = useCallback(async (content: string) => {
     const userMessage: ChatMessage = {
@@ -123,6 +129,7 @@ export function useAgentChat() {
       }
     } finally {
       setIsStreaming(false)
+      onStreamCompleteRef.current?.()
     }
   }, [conversationId])
 

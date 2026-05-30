@@ -69,20 +69,28 @@ async def chat(
     context_messages = history[-max_msgs:]
 
     async def event_stream():
-        full_response = ""
-        async for chunk in stream_agent(db, context_messages):
-            parsed = json.loads(chunk.strip())
-            if parsed["type"] == "token":
-                full_response += parsed["content"]
-            yield f"data: {chunk}\n\n"
-
-        # Save conversation after streaming completes
-        history.append({"role": "assistant", "content": full_response})
-        conversation.messages = json.dumps(history, ensure_ascii=False)
-        db.commit()
-
-        # Send conversation_id in meta event
+        # Send conversation_id immediately so frontend can track it
         yield f"data: {json.dumps({'type': 'meta', 'conversation_id': conversation.id})}\n\n"
+
+        full_response = ""
+        try:
+            async for chunk in stream_agent(db, context_messages):
+                parsed = json.loads(chunk.strip())
+                if parsed["type"] == "token":
+                    full_response += parsed["content"]
+                yield f"data: {chunk}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'token', 'content': f'[Error: {e!s}]'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        finally:
+            # Always save conversation messages, even if streaming errored
+            if full_response:
+                history.append({"role": "assistant", "content": full_response})
+            conversation.messages = json.dumps(history, ensure_ascii=False)
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

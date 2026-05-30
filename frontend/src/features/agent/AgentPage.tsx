@@ -19,7 +19,9 @@ const QUICKSTART_PROMPTS = [
 
 export function AgentPage() {
   const [input, setInput] = useState('')
-  const { messages, isStreaming, sendMessage, clearChat, stopStreaming, conversationId, loadConversation } = useAgentChat()
+  const { messages, isStreaming, sendMessage, clearChat, stopStreaming, conversationId, loadConversation } = useAgentChat({
+    onStreamComplete: () => qc.invalidateQueries({ queryKey: ['agent-conversations'] }),
+  })
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const qc = useQueryClient()
 
